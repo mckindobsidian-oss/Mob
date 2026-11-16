@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Mob",
+  "version": "1.2.0",
+  "description": "Track aggregate browser activity and enforce Mob focus limits.",
+  "minimum_chrome_version": "120",
+  "permissions": ["alarms", "idle", "tabs", "storage", "scripting", "declarativeNetRequest"],
+  "host_permissions": ["https://xrvqyraafmwpfenysmfo.supabase.co/*", "*://*.youtube.com/*"],
+  "action": { "default_popup": "popup.html", "default_icon": "icon.png" },
+  "icons": { "128": "icon.png" },
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+    "matches": ["https://mob-focus-north.autumnalaspen.chatgpt.site/*", "http://localhost/*", "http://127.0.0.1/*"],
+    "js": ["bridge.js"],
+    "run_at": "document_start"
+  }],
+  "web_accessible_resources": [{
+    "resources": ["blocked.html", "popup.css", "icon.png"],
+    "matches": ["*://*.youtube.com/*"]
+  }]
+}

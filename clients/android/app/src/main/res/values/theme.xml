@@ -1,0 +1,10 @@
+<resources>
+  <style name="MobTheme" parent="android:style/Theme.Material.NoActionBar">
+    <item name="android:fontFamily">sans</item>
+    <item name="android:windowBackground">#111613</item>
+    <item name="android:statusBarColor">#111613</item>
+    <item name="android:navigationBarColor">#111613</item>
+    <item name="android:colorAccent">#b5e68a</item>
+  </style>
+  <string name="blocking_description">Mob checks whether the current YouTube screen is Shorts. If you set a time limit, Mob uses Android usage access to count YouTube time. No screen content or YouTube history is uploaded.</string>
+</resources>

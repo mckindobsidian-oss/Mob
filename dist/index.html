@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#121714">
+  <meta name="description" content="Mob is a workspace for your tasks, calendar, Pomodoro sessions and device activity.">
+  <title>Mob · North Designer</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <aside class="sidebar" aria-label="Sidebar">
+    <a class="brand" href="#today" aria-label="Mob home"><img src="./icon.svg" alt=""><span><strong>Mob<span class="period">.</span></strong><small>by North Designer</small></span></a>
+    <div class="sidebar-body">
+      <nav class="primary-nav" id="nav" aria-label="Workspace"></nav>
+    </div>
+    <div class="sidebar-bottom">
+      <button class="nav-button" data-action="settings" aria-label="Settings" title="Settings"><i data-icon="settings"></i><span>Settings</span></button>
+      <button class="nav-button" data-action="sidebar" id="sidebar-toggle" aria-label="Collapse sidebar" title="Collapse sidebar" aria-controls="nav" aria-expanded="true"><i data-icon="sidebar"></i><span>Collapse sidebar</span></button>
+      <button class="profile" data-action="account" id="profile"></button>
+    </div>
+  </aside>
+  <main id="main">
+    <header class="topbar">
+      <a class="brand mobile-brand" href="#today" aria-label="Mob home"><img src="./icon.svg" alt=""><strong>Mob<span class="period">.</span></strong></a>
+      <div class="breadcrumb"><strong id="crumb">Today</strong></div>
+      <div class="top-actions">
+        <button class="icon-button" aria-label="Notifications" title="Notifications" data-action="notifications"><i data-icon="bell"></i></button>
+        <button class="button primary new-button" data-action="task-new"><i data-icon="plus"></i> New task</button>
+        <button class="mobile-account icon-button" data-action="account" aria-label="Account or login"><i data-icon="user"></i></button>
+      </div>
+    </header>
+    <div class="content" id="view"></div>
+  </main>
+  <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile workspace"></nav>
+  <dialog id="dialog"></dialog>
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"/>
+
+    <application android:allowBackup="false" android:label="Mob" android:icon="@drawable/mob_icon"
+        android:theme="@style/MobTheme" android:usesCleartextTraffic="false">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="mobnorth" android:host="auth" android:path="/callback"/>
+            </intent-filter>
+        </activity>
+        <service android:name=".YouTubeBlocker" android:exported="true"
+            android:label="Mob YouTube blocking" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/blocker"/>
+        </service>
+        <receiver android:name=".ReminderReceiver" android:exported="false">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/></intent-filter>
+        </receiver>
+    </application>
+</manifest>

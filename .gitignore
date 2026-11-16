@@ -1,0 +1,11 @@
+node_modules/
+.gradle/
+/clients/android/app/build/
+/clients/android/local.properties
+.env
+.env.*
+!.env.example
+*.zip
+.mob-build/
+*.apk
+*.exe

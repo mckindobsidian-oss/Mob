@@ -1,0 +1,209 @@
+package com.northdesigner.mob;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.NotificationManager;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
+import android.widget.Toast;
+import androidx.webkit.WebViewAssetLoader;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
+import java.util.Arrays;
+import java.util.Collections;
+import org.json.JSONObject;
+
+public final class MainActivity extends Activity {
+    private static final String ORIGIN = "https://appassets.androidplatform.net";
+    private static final String HOME = ORIGIN + "/assets/index.html";
+    private static final String SUPABASE = "xrvqyraafmwpfenysmfo.supabase.co";
+    private static final int NOTIFICATIONS = 91;
+    private WebView web;
+    private boolean ready;
+
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        FrameLayout root = new FrameLayout(this);
+        web = new WebView(this);
+        root.addView(web, new FrameLayout.LayoutParams(-1, -1));
+        if (Build.VERSION.SDK_INT >= 35) {
+            root.setOnApplyWindowInsetsListener((view, insets) -> {
+                android.graphics.Insets bars = insets.getInsets(android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.ime());
+                view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                return android.view.WindowInsets.CONSUMED;
+            });
+        }
+        setContentView(root);
+        web.getSettings().setJavaScriptEnabled(true);
+        web.getSettings().setDomStorageEnabled(true);
+        web.getSettings().setAllowFileAccess(false);
+        web.getSettings().setAllowContentAccess(false);
+        web.getSettings().setMediaPlaybackRequiresUserGesture(true);
+        WebViewAssetLoader assets = new WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
+        web.setWebViewClient(new WebViewClient() {
+            @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                return assets.shouldInterceptRequest(request.getUrl());
+            }
+            @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                Uri uri = request.getUrl();
+                if (!request.isForMainFrame()) return false;
+                if (HOME.startsWith(uri.getScheme() + "://" + uri.getHost() + "/") && "/assets/index.html".equals(uri.getPath())) return false;
+                if ("https".equals(uri.getScheme())) open(uri);
+                return true;
+            }
+        });
+        web.setWebChromeClient(new WebChromeClient());
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(web, "MobAndroid", Collections.singleton(ORIGIN),
+                (view, message, origin, mainFrame, reply) -> {
+                    if (mainFrame && ORIGIN.equals(origin.toString())) receive(message.getData());
+                });
+        }
+        load(getIntent());
+    }
+
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        load(intent);
+    }
+
+    private void load(Intent intent) {
+        Uri callback = intent.getData();
+        if (callback != null && "mobnorth".equals(callback.getScheme()) && "auth".equals(callback.getHost())
+                && "/callback".equals(callback.getPath())) {
+            String code = callback.getQueryParameter("code");
+            ready = false;
+            if (code != null && code.length() <= 500) {
+                web.loadUrl(HOME + "?code=" + Uri.encode(code));
+                return;
+            }
+            web.loadUrl(HOME + "?auth-error=1");
+            return;
+        }
+        if (web.getUrl() == null) web.loadUrl(HOME + (intent.getBooleanExtra("tasks", false) ? "#tasks" : ""));
+        else if (intent.getBooleanExtra("tasks", false)) web.loadUrl(HOME + "#tasks");
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (ready) { reportPermissions(false); ReminderReceiver.reschedule(this); }
+    }
+
+    @Override public void onBackPressed() {
+        if (web.canGoBack()) web.goBack();
+        else super.onBackPressed();
+    }
+
+    private void receive(String text) {
+        if (text == null || text.length() > 100_000) return;
+        try {
+            JSONObject message = new JSONObject(text);
+            SharedPreferences prefs = getSharedPreferences("mob", MODE_PRIVATE);
+            switch (message.optString("type")) {
+                case "ready": ready = true; reportPermissions(false); break;
+                case "blocking-permission":
+                    startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                    break;
+                case "usage-permission":
+                    startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
+                    break;
+                case "notification-permission":
+                    if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATIONS);
+                    } else setNotifications();
+                    break;
+                case "notification-disable":
+                    prefs.edit().putBoolean("notifications", false).apply();
+                    break;
+                case "exact-reminders":
+                    if (Build.VERSION.SDK_INT >= 31 && !getSystemService(AlarmManager.class).canScheduleExactAlarms()) {
+                        startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + getPackageName())));
+                    }
+                    break;
+                case "policy":
+                    prefs.edit().putBoolean("shorts", message.optBoolean("blockShorts"))
+                        .putInt("limit", Math.min(1440, Math.max(0, message.optInt("dailyLimit")))).apply();
+                    break;
+                case "youtube-account":
+                    String owner = message.optString("owner");
+                    if (!owner.equals(prefs.getString("youtube-owner", ""))) YouTubeBudget.clear(prefs);
+                    String token = message.optString("token");
+                    String key = message.optString("key");
+                    if (("https://" + SUPABASE).equals(message.optString("url")) && owner.matches("[a-f0-9-]{36}")
+                            && token.matches("[a-f0-9]{64}") && key.matches("sb_publishable_[a-zA-Z0-9_-]+")) {
+                        prefs.edit().putString("youtube-token", token).putString("youtube-key", key)
+                            .putString("youtube-owner", owner).apply();
+                        YouTubeBudget.sync(this, YouTubeBlocker.todaySeconds(this));
+                    }
+                    break;
+                case "reminders": ReminderReceiver.replace(this, message.getJSONArray("items")); break;
+                case "notify":
+                    if (prefs.getBoolean("notifications", false)) ReminderReceiver.notify(this, message.optString("tag"), message.optString("title"), message.optString("body"));
+                    break;
+                case "oauth":
+                    Uri destination = Uri.parse(message.getString("url"));
+                    if ("https".equals(destination.getScheme()) && SUPABASE.equals(destination.getHost())
+                        && "/auth/v1/authorize".equals(destination.getPath())) open(destination);
+                    break;
+                case "youtube":
+                    Uri youtube = Uri.parse(message.getString("url"));
+                    int limit = prefs.getInt("limit", 0);
+                    if (limit > 0 && YouTubeBudget.total(prefs, YouTubeBlocker.todaySeconds(this)) >= limit * 60) {
+                        Toast.makeText(this, "YouTube time limit reached", Toast.LENGTH_SHORT).show();
+                        break;
+                    }
+                    if ("https".equals(youtube.getScheme()) && Arrays.asList("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be").contains(youtube.getHost())) open(youtube);
+                    break;
+            }
+        } catch (Exception ignored) { }
+    }
+
+    @Override public void onRequestPermissionsResult(int code, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(code, permissions, results);
+        if (code == NOTIFICATIONS) setNotifications();
+    }
+
+    private void setNotifications() {
+        boolean allowed = getSystemService(NotificationManager.class).areNotificationsEnabled();
+        getSharedPreferences("mob", MODE_PRIVATE).edit().putBoolean("notifications", allowed).apply();
+        reportPermissions(true);
+    }
+
+    private void reportPermissions(boolean notificationRequested) {
+        JSONObject data = new JSONObject();
+        try {
+            data.put("blocking", YouTubeBlocker.enabled(this));
+            data.put("usage", YouTubeBlocker.hasUsageAccess(this));
+            SharedPreferences prefs = getSharedPreferences("mob", MODE_PRIVATE);
+            data.put("owner", prefs.getString("youtube-owner", ""));
+            int localSeconds = YouTubeBlocker.todaySeconds(this);
+            data.put("youtubeSeconds", YouTubeBudget.total(prefs, localSeconds));
+            data.put("youtubeDay", YouTubeBudget.day());
+            if (YouTubeBlocker.hasUsageAccess(this)) YouTubeBudget.sync(this, localSeconds);
+            if (notificationRequested) data.put("notifications", getSharedPreferences("mob", MODE_PRIVATE).getBoolean("notifications", false));
+            web.evaluateJavascript("window.dispatchEvent(new CustomEvent('mob-native-status',{detail:" + data + "}))", null);
+        } catch (Exception ignored) { }
+    }
+
+    private void open(Uri destination) {
+        try { startActivity(new Intent(Intent.ACTION_VIEW, destination)); }
+        catch (ActivityNotFoundException error) {
+            Toast.makeText(this, "Install a browser to open this link.", Toast.LENGTH_SHORT).show();
+        }
+    }
+}
