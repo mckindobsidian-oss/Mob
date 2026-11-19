@@ -6,7 +6,7 @@ using Microsoft.Win32;
 
 internal static class MobLauncher
 {
-    private const string Site = "https://mob-focus-north.autumnalaspen.chatgpt.site/";
+    private const string Site = "https://usemob.netlify.app/";
 
     [STAThread]
     private static void Main(string[] args)

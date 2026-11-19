@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mob",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Track aggregate browser activity and enforce Mob focus limits.",
   "minimum_chrome_version": "120",
   "permissions": [
@@ -29,8 +29,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://mob-focus-test-nov19.candidleopard2.chatgpt.site/*",
-        "https://mob-focus-north.autumnalaspen.chatgpt.site/*",
+        "https://usemob.netlify.app/*",
         "http://localhost/*",
         "http://127.0.0.1/*"
       ],

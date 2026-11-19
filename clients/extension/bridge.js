@@ -5,7 +5,7 @@ async function report(type = "available") {
   try { announce(type, await chrome.runtime.sendMessage({ type: "status" })); }
   catch { /* The extension can reload while the page is open. */ }
 }
-const origins = ["https://mob-focus-test-nov19.candidleopard2.chatgpt.site","https://mob-focus-north.autumnalaspen.chatgpt.site", "http://localhost:4173", "http://127.0.0.1:4173"];
+const origins = ["https://usemob.netlify.app", "http://localhost:4173", "http://127.0.0.1:4173"];
 window.addEventListener("message", async event => {
   if (!origins.includes(location.origin) || event.source !== window || event.origin !== location.origin || event.data?.source !== "mob-web") return;
   const { type, token, url, key, local, policy, enabled, owner } = event.data;

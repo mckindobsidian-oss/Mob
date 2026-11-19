@@ -9,7 +9,7 @@ parser = ArgumentParser()
 parser.add_argument("output", type=Path)
 args = parser.parse_args()
 source = Path(__file__).with_name("launcher.s")
-site = "https://mob-focus-north.autumnalaspen.chatgpt.site/"
+site = "https://usemob.netlify.app/"
 
 with TemporaryDirectory() as directory:
     build = Path(directory)

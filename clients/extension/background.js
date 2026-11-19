@@ -1,6 +1,6 @@
 if(typeof importScripts === "function")importScripts("usage-rules.js");
 const RuleEngine=globalThis.MobUsageRules;
-const sites = new Set(["https://mob-focus-test-nov19.candidleopard2.chatgpt.site", "https://mob-focus-north.autumnalaspen.chatgpt.site", "http://localhost:4173", "http://127.0.0.1:4173"]);
+const sites = new Set(["https://usemob.netlify.app", "http://localhost:4173", "http://127.0.0.1:4173"]);
 const API = "https://xrvqyraafmwpfenysmfo.supabase.co";
 const YOUTUBE = "*://*.youtube.com/*";
 const connectionKeys = ["connection", "cloud", "browserUsage", "focusPolicy", "browserSyncAt", "usage", "siteOther", "ruleOther", "ruleSessions"];
