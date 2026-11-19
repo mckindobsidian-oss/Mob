@@ -33,9 +33,21 @@ public final class MainActivity extends Activity {
     private static final int NOTIFICATIONS = 91;
     private WebView web;
     private boolean ready;
+    private final android.os.Handler statusHandler=new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable refreshStatus=new Runnable() {
+        @Override public void run() {
+            if (ready) reportPermissions(false);
+            statusHandler.postDelayed(this,30000);
+        }
+    };
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        stopService(new Intent().setClassName(this,getPackageName()+".FlowService"));
+        SharedPreferences old=getSharedPreferences("mob", MODE_PRIVATE);
+        SharedPreferences.Editor cleanup=old.edit();
+        for (String key : old.getAll().keySet()) if (key.startsWith("flow-") || key.startsWith("youtube-") || key.startsWith("account-")) cleanup.remove(key);
+        cleanup.putBoolean("flow-enabled",false).putInt("limit",0).apply();
         FrameLayout root = new FrameLayout(this);
         web = new WebView(this);
         root.addView(web, new FrameLayout.LayoutParams(-1, -1));
@@ -101,12 +113,19 @@ public final class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
-        if (ready) { reportPermissions(false); ReminderReceiver.reschedule(this); }
+        statusHandler.removeCallbacks(refreshStatus);
+        statusHandler.postDelayed(refreshStatus,30000);
+        if (ready) {  reportPermissions(false); ReminderReceiver.reschedule(this); }
     }
 
     @Override public void onBackPressed() {
         if (web.canGoBack()) web.goBack();
         else super.onBackPressed();
+    }
+
+    @Override protected void onPause() {
+        statusHandler.removeCallbacks(refreshStatus);
+        super.onPause();
     }
 
     private void receive(String text) {
@@ -115,12 +134,9 @@ public final class MainActivity extends Activity {
             JSONObject message = new JSONObject(text);
             SharedPreferences prefs = getSharedPreferences("mob", MODE_PRIVATE);
             switch (message.optString("type")) {
-                case "ready": ready = true; reportPermissions(false); break;
+                case "ready": ready = true;  reportPermissions(false); break;
                 case "blocking-permission":
                     startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-                    break;
-                case "usage-permission":
-                    startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS));
                     break;
                 case "notification-permission":
                     if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -136,20 +152,8 @@ public final class MainActivity extends Activity {
                     }
                     break;
                 case "policy":
-                    prefs.edit().putBoolean("shorts", message.optBoolean("blockShorts"))
-                        .putInt("limit", Math.min(1440, Math.max(0, message.optInt("dailyLimit")))).apply();
-                    break;
-                case "youtube-account":
-                    String owner = message.optString("owner");
-                    if (!owner.equals(prefs.getString("youtube-owner", ""))) YouTubeBudget.clear(prefs);
-                    String token = message.optString("token");
-                    String key = message.optString("key");
-                    if (("https://" + SUPABASE).equals(message.optString("url")) && owner.matches("[a-f0-9-]{36}")
-                            && token.matches("[a-f0-9]{64}") && key.matches("sb_publishable_[a-zA-Z0-9_-]+")) {
-                        prefs.edit().putString("youtube-token", token).putString("youtube-key", key)
-                            .putString("youtube-owner", owner).apply();
-                        YouTubeBudget.sync(this, YouTubeBlocker.todaySeconds(this));
-                    }
+                    prefs.edit().putLong("policy-revision",System.nanoTime()).putBoolean("shorts", message.optBoolean("blockShorts"))
+                        .putInt("limit", 0).apply();
                     break;
                 case "reminders": ReminderReceiver.replace(this, message.getJSONArray("items")); break;
                 case "notify":
@@ -162,11 +166,6 @@ public final class MainActivity extends Activity {
                     break;
                 case "youtube":
                     Uri youtube = Uri.parse(message.getString("url"));
-                    int limit = prefs.getInt("limit", 0);
-                    if (limit > 0 && YouTubeBudget.total(prefs, YouTubeBlocker.todaySeconds(this)) >= limit * 60) {
-                        Toast.makeText(this, "YouTube time limit reached", Toast.LENGTH_SHORT).show();
-                        break;
-                    }
                     if ("https".equals(youtube.getScheme()) && Arrays.asList("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be").contains(youtube.getHost())) open(youtube);
                     break;
             }
@@ -188,13 +187,6 @@ public final class MainActivity extends Activity {
         JSONObject data = new JSONObject();
         try {
             data.put("blocking", YouTubeBlocker.enabled(this));
-            data.put("usage", YouTubeBlocker.hasUsageAccess(this));
-            SharedPreferences prefs = getSharedPreferences("mob", MODE_PRIVATE);
-            data.put("owner", prefs.getString("youtube-owner", ""));
-            int localSeconds = YouTubeBlocker.todaySeconds(this);
-            data.put("youtubeSeconds", YouTubeBudget.total(prefs, localSeconds));
-            data.put("youtubeDay", YouTubeBudget.day());
-            if (YouTubeBlocker.hasUsageAccess(this)) YouTubeBudget.sync(this, localSeconds);
             if (notificationRequested) data.put("notifications", getSharedPreferences("mob", MODE_PRIVATE).getBoolean("notifications", false));
             web.evaluateJavascript("window.dispatchEvent(new CustomEvent('mob-native-status',{detail:" + data + "}))", null);
         } catch (Exception ignored) { }

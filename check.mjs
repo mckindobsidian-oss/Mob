@@ -3,6 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
 import { activityFor, defaults, newTimer, nextTimer, offsetDay, safeYouTubeLink, spotifySource, streakFor, timerRemaining, usageByDay, usernameFor } from "./dist/core.js";
 import { publicConfig } from "./dist/supabase.js";
+import { settingsQueue } from "./dist/settings-queue.js";
 
 const tick = 100_000;
 const focus = newTimer(defaults, "focus", { endsAt: tick, rounds: 3 });
@@ -53,10 +54,13 @@ const extension = {
   } },
   scripting: { getRegisteredContentScripts: async () => [{ id: "mob-youtube" }] },
   permissions: { contains: async () => true, onAdded: event, onRemoved: event },
-  declarativeNetRequest: { updateDynamicRules: async ({ addRules }) => { rules = addRules; }, updateSessionRules: async () => {} },
+  declarativeNetRequest: { updateDynamicRules: async ({ addRules,removeRuleIds=[] }) => { rules = [...rules.filter(rule=>!removeRuleIds.includes(rule.id)),...addRules]; }, updateSessionRules: async () => {} },
   runtime: { onInstalled: event, onStartup: event, onMessage: event },
   alarms: { onAlarm: event, clear: async () => {} }
 };
+extension.tabs = { onActivated: event, onUpdated: event, onRemoved: event };
+extension.windows = { onFocusChanged: event };
+extension.idle = { onStateChanged: event, queryState: async () => "active" };
 const worker = await readFile(new URL("./clients/extension/background.js", import.meta.url), "utf8");
 const budget = await runInNewContext(worker + "\npullPolicy()", {
   chrome: extension, AbortSignal,
@@ -76,4 +80,109 @@ await runInNewContext(worker + '\nsetFocus({ sites: ["example.com", "invalid"], 
 assert.deepEqual(Array.from(focusRules[0].condition.requestDomains), ["example.com"]);
 await runInNewContext(worker + '\nsetFocus({ sites: ["example.com"], until: 0 }).then(apply)', { chrome: extension, URL });
 assert.equal(focusRules.length, 0);
+// Only the same active tab in a focused, unlocked browser gets time.
+const browserStorage = { connection: { token: "test" }, tracking: true };
+let now = Date.now();
+let tab = { id: 1, windowId: 2, url: "https://example.com/", incognito: false };
+let focused = true, idle = "active";
+const browserChrome = {
+  ...extension,
+  storage: { local: {
+    get: async keys => Object.fromEntries([keys].flat().filter(key => key in browserStorage).map(key => [key, structuredClone(browserStorage[key])])),
+    set: async value => Object.assign(browserStorage, structuredClone(value))
+  } },
+  tabs: { ...extension.tabs, query: async () => [tab] },
+  windows: { ...extension.windows, get: async () => ({ focused, state: focused ? "normal" : "minimized" }) },
+  idle: { ...extension.idle, queryState: async () => idle }
+};
+class SampleDate extends Date { static now() { return now; } }
+const sample = async reset => runInNewContext(worker + "\nsampleBrowser(" + reset + ")", { chrome: browserChrome, URL, Date: SampleDate });
+const seconds = () => Object.values(browserStorage.browserUsage.rows).reduce((sum, row) => sum + row.seconds, 0);
+await sample(false);
+now += 30_000; await sample(false);
+assert.equal(seconds(), 30);
+tab = { ...tab, id: 3 };
+now += 10_000; await sample(true);
+assert.equal(seconds(), 30);
+now += 30_000; await sample(false);
+assert.equal(seconds(), 60);
+focused = false; now += 30_000; await sample(false);
+assert.equal(seconds(), 60);
+focused = true; await sample(true);
+idle = "locked"; now += 30_000; await sample(false);
+assert.equal(seconds(), 60);
+idle = "active"; await sample(true);
+now += 300_000; await sample(false);
+assert.equal(seconds(), 60);
+tab = { ...tab, incognito: true }; await sample(true);
+now += 30_000; await sample(false);
+assert.equal(seconds(), 60);
+const flowSource = await readFile(new URL("./dist/flow.js", import.meta.url), "utf8");
+const localActivity = {};
+let tracking = true;
+const flow = runInNewContext(flowSource.replace("export function createFlow", "function createFlow") + "\ncreateFlow(options)", {
+  options: {
+    read: (key, fallback) => structuredClone(localActivity[key] ?? fallback),
+    save: (key, value) => { localActivity[key] = structuredClone(value); },
+    device: "device", source: "desktop", native: true,
+    enabled: () => tracking, active: () => false
+  },
+  document: { querySelector: () => null }
+});
+flow.count("app", "editor", 0.25);
+flow.background();
+let saved = () => Object.values(localActivity["activity:guest"].rows);
+assert.equal(saved()[0].seconds, 0.25);
+tracking = false;
+flow.count("app", "editor", 1);
+flow.background();
+assert.equal(saved()[0].seconds, 0.25);
+tracking = true;
+const mobileHour = new Date(Math.floor(Date.now() / 3600000) * 3600000).toISOString();
+const mobile = [{ hour: mobileHour, source: "mobile", label: "example.app", seconds: 10, visits: 1 }];
+// Android imports are retired.
+// Android imports are retired.
+
+
+
 console.log("Mob checks passed.");
+const settingStore=new Map();
+const pendingSettings=settingsQueue({
+  getItem:key=>settingStore.get(key) || null,
+  setItem:(key,value)=>settingStore.set(key,value)
+},"owner");
+pendingSettings.add({dailyLimit:20,blockedSites:["example.com"]});
+const sentSettings=pendingSettings.snapshot();
+pendingSettings.add({dailyLimit:30});
+pendingSettings.acknowledge(sentSettings);
+assert.deepEqual(pendingSettings.values(),{dailyLimit:30});
+pendingSettings.acknowledge(pendingSettings.snapshot());
+assert.deepEqual(pendingSettings.values(),{});
+console.log("Offline settings queue preserves newer edits across acknowledgements.");
+// Cloud latency must not block foreground sampling or overwrite newer counters.
+tab={...tab,incognito:false};
+await sample(true);
+let releaseNetwork, markStarted;
+const started=new Promise(resolve=>{markStarted=resolve;});
+const networkGate=new Promise(resolve=>{releaseNetwork=resolve;});
+const liveWorker=runInNewContext(worker+"\n({pullPolicy,sampleBrowser})",{
+  chrome:browserChrome,URL,Date:SampleDate,AbortSignal,
+  fetch:async url=>{
+    if (url.endsWith("mob_flow_browser")) {
+      markStarted();
+      await networkGate;
+      return Response.json({epoch:0,sites:[],theme:"plain"});
+    }
+    return Response.json([{block_shorts:false,daily_limit_minutes:0,total_seconds:0}]);
+  }
+});
+const uploading=liveWorker.pullPolicy(true);
+await started;
+const beforeLatency=seconds();
+now+=30_000;
+await liveWorker.sampleBrowser();
+assert.equal(seconds(),beforeLatency+30,"Network latency blocked or dropped foreground time");
+releaseNetwork();
+await uploading;
+assert.equal(seconds(),beforeLatency+30,"Acknowledgement overwrote a newer foreground counter");
+console.log("Browser sampling continues during cloud latency without losing queued data.");

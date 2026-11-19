@@ -6,5 +6,5 @@
     <item name="android:navigationBarColor">#111613</item>
     <item name="android:colorAccent">#b5e68a</item>
   </style>
-  <string name="blocking_description">Mob checks whether the current YouTube screen is Shorts. If you set a time limit, Mob uses Android usage access to count YouTube time. No screen content or YouTube history is uploaded.</string>
+  <string name="blocking_description">Mob reads the active YouTube screen to dismiss Shorts. Screen content stays on this device. No app usage is collected or synced.</string>
 </resources>

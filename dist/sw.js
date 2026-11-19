@@ -1,7 +1,7 @@
-const CACHE = "mob-shell-v5";
+const CACHE = "mob-shell-v11";
 const FILES = [
   "./", "./index.html", "./style.css", "./app.js", "./core.js",
-  "./mob-platform.js", "./flow.js", "./supabase.js", "./supabase-config.js", "./focus-lake.jpg",
+  "./usage-rules.js", "./flow-controls.js", "./focus-audio.js", "./themed-controls.js", "./mob-platform.js", "./flow.js", "./settings-queue.js", "./supabase.js", "./supabase-config.js", "./focus-lake.jpg",
   "./icon.svg", "./icon-192.png", "./manifest.webmanifest"
 ];
 

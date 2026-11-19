@@ -2,7 +2,8 @@ export const defaults = {
   focus: 25, short: 5, long: 15, interval: 4,
   autoBreak: false, autoFocus: false, sound: true, notifications: false,
   theme: "plain", photo: "", username: "", focusGoal: 2, onboarded: false,
-  flowTracking: false, blockShorts: false, dailyLimit: 0, blockedSites: [], shareScore: false, motion: true, spotify: ""
+  usageRules: [], flowTracking: false, blockShorts: false, dailyLimit: 0, blockedSites: [], hideUsage: false, hideList: false,
+  focusAudio: {preset:"brown",volume:0.2}, shareScore: false, motion: true, spotify: ""
 };
 
 export const timerLabels = { focus: "Focus", short: "Short break", long: "Long break" };
