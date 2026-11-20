@@ -588,3 +588,44 @@ progress::-moz-progress-bar { background: var(--heat); border-radius: 20px; }
 body.focus-expanded .focus-stage .mini-spotify { visibility: visible; }
 
 .duration-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.duration-fields input{width:100%;min-width:0}.usage-list .usage-hide,.usage-list .usage-set-limit{display:inline-flex;margin:8px 0 0 8px;min-height:34px;padding:6px 10px;font-size:12px}.leader-avatar{display:grid;place-items:center;flex-shrink:0;width:34px;height:34px;border-radius:50%;overflow:hidden;background:var(--raised);color:var(--accent)}.leader-avatar img{width:100%;height:100%;object-fit:cover}.leader-row{grid-template-columns:30px 34px minmax(0,1fr) auto;gap:10px}
+
+/* Shared sidebar and focused controls */
+#mobile-menu { display: none; }
+body[data-view="flow"] .top-actions .new-button,
+body[data-view="flow"] .top-actions [data-action="notifications"] { display: none; }
+.app-footer { display: flex; gap: 20px; padding: 0 32px 28px; font-size: 13px; color: var(--muted); }
+.app-footer a:hover { color: var(--ink); }
+.settings-page { max-width: 760px; }
+.settings-page .settings-tabs { margin-bottom: 20px; }
+.app-footer, .sidebar, .topbar, .mobile-nav, button { user-select: none; }
+.stage-tools .stage-icon { width: 36px; height: 36px; padding: 0; }
+.stage-icon svg { transition: transform .18s ease; }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .stage-icon:hover svg { transform: scale(1.28); }
+}
+.music-card { background: none; border: 0; padding: 0; gap: 8px; }
+.music-card #spotify-player:empty { display: none; }
+.spotify-launcher { min-height: 36px; width: min(100%, 170px); justify-content: center; }
+.spotify-launcher svg { width: 23px; height: 23px; }
+.focus-stage .mini-spotify { width: auto; box-shadow: none; background: transparent; border: 0; }
+.focus-stage .mini-spotify:has(iframe) { width: min(340px, calc(100vw - 32px)); background: var(--card); border: 1px solid var(--line); }
+.mini-spotify .spotify-launcher { width: 38px; padding: 0; border: 0; background: transparent; }
+.mini-spotify .form-actions [data-action="spotify-link"] { display: inline-flex; }
+.focus-stage.expanded .stage-controls, .focus-stage:fullscreen .stage-controls { padding-bottom: 85px; }
+.focus-stage.expanded:has(.mini-spotify iframe) .stage-controls,
+.focus-stage:fullscreen:has(.mini-spotify iframe) .stage-controls { padding-bottom: 235px; }
+.browser-tracking { margin-bottom: 10px; }
+.legal-page main { margin: auto; padding: 36px 20px 60px; max-width: 760px; }
+.legal-page main a { text-decoration: underline; text-underline-offset: 3px; }
+.legal-page main h1 { margin: 24px 0 10px; }
+.legal-page main h2 { margin: 30px 0 8px; }
+.legal-page main p, .legal-page main li { line-height: 1.7; }
+@media (max-width: 790px) {
+  #mobile-menu { display: inline-flex; }
+  .mobile-menu-open .sidebar { display: flex; width: min(280px, 80vw); z-index: 8; box-shadow: 0 0 0 100vmax #0008; }
+  .mobile-menu-open .topbar { position: relative; z-index: 9; }
+  .mobile-menu-open .sidebar { top: 60px; bottom: 54px; }
+  .mobile-menu-open .sidebar .brand, .mobile-menu-open #sidebar-toggle { display: none; }
+  .mobile-nav { grid-template-columns: repeat(5,minmax(0,1fr)); }
+  .app-footer { padding-bottom: 80px; }
+}

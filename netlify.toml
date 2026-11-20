@@ -1,2 +1,9 @@
 [build]
   publish = "dist"
+
+# Self-hosted app code plus the pinned Supabase client library.
+# Blocking injected inline scripts also suppresses the host's badge.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "script-src 'self' https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'"

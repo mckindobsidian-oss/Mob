@@ -53,7 +53,8 @@ const icons = {
 
   bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8m-11 11a2 2 0 0 0 4 0"/>',
 
-  flame: '<path d="M12 2c1 4-1 5-2 7-1-1-1-2-1-3-4 3-5 6-5 8a8 8 0 0 0 16 0c0-4-3-7-6-9l1 4c-2-1-2-4-3-7z"/><path d="M10 19a3 3 0 0 1 2-5 3 3 0 0 1 2 5"/>',
+  spotify: '<circle cx="12" cy="12" r="11" fill="#1ed760" stroke="none"/><path d="M5.6 9c4.2-1.2 8.9-.8 12.8 1.4M6.7 12.4c3.5-1 7.3-.6 10.3 1.1M7.8 15.5c2.7-.7 5.4-.4 7.7.9" stroke="#102417" stroke-width="1.65"/>',
+  flame: '<path fill="#ff662c" stroke="none" d="M13 1c1 5-3 7-2 11-2-1-3-3-3-5-4 4-5 7-4 10a8 8 0 0 0 16-2c0-4-2-7-4-9 0 3-1 4-1 4 0-4-1-6-2-9Z"/><path fill="#ffd45a" stroke="none" d="M13 12c1 3 4 4 3 7a4 4 0 0 1-8-1c0-2 1-3 2-4 0 2 1 2 1 2Z"/>' ,
 
   check: '<path d="m5 12 4 4L19 6"/>',
 
@@ -97,7 +98,7 @@ const longDay = key => formatDay(key, { weekday: "long", month: "long", day: "nu
 
 const dateWithYear = key => formatDay(key, { month: "long", year: "numeric" });
 
-const views = { today: ["Today", "today"], tasks: ["Tasks", "tasks"], focus: ["Focus", "timer"], calendar: ["Calendar", "calendar"], flow: ["Flow", "flow"], social: ["Social", "social"] };
+const views = { today: ["Today", "today"], tasks: ["Tasks", "tasks"], focus: ["Focus", "timer"], calendar: ["Calendar", "calendar"], flow: ["Flow", "flow"], social: ["Social", "social"], settings: ["Settings", "settings"] };
 
 // Android keeps a Flow placeholder; it never starts usage collection.
 
@@ -138,6 +139,7 @@ let handle = "";
 let leaderboard = [];
 
 let leaderboardStatus = "";
+let handleLoadFailed = false;
 
 let lastRanking = 0;
 
@@ -163,7 +165,9 @@ let permissionJourney = 1;
 
 let guest = read("guest", { settings: {}, tasks: [], sessions: [] });
 
-let settings = { ...defaults, ...guest.settings };
+const devicePreferenceKeys = ["theme", "photo", "focus", "short", "long", "interval", "focusGoal", "autoBreak", "autoFocus", "sound", "motion"];
+const devicePreferences = () => read("device-preferences", {});
+let settings = { ...defaults, ...guest.settings, ...devicePreferences() };
 
 let tasks = guest.tasks;
 
@@ -226,8 +230,6 @@ const flow = createFlow({
   native: Boolean(window.MobDesktop || window.MobAndroid),
 
   uploads: !window.MobAndroid,
-
-  privacy:()=>({usage:settings.hideUsage,list:settings.hideList}),
 
   onEpoch: since => nativeMessage("flow", { enabled: trackingAllowed, since, owner: account?.uid || "" })
 
@@ -303,6 +305,8 @@ function saveSettings({ flowTracking, ...changes }) {
 
   if (window.MobAndroid && account) save("android-settings:"+account.uid,{...settings,...changes});
 
+  const localChanges = Object.fromEntries(devicePreferenceKeys.filter(key => Object.hasOwn(changes, key)).map(key => [key, changes[key]]));
+  if (Object.keys(localChanges).length) save("device-preferences", { ...devicePreferences(), ...localChanges });
   const old = settings;
 
   settings = { ...settings, ...changes };
@@ -451,7 +455,7 @@ async function syncSessions() {
 
 function navigationOrder() {
   const saved=read("navigation-order",[]);
-  return [...new Set([...saved.filter(key=>views[key]),...Object.keys(views)])];
+  return [...new Set([...saved, ...Object.keys(views)])].filter(key => views[key] && !["calendar", "settings"].includes(key));
 }
 function avatarMarkup() {
   const photo=account?.photoURL||"";
@@ -462,7 +466,7 @@ function navMarkup() {
 
   return navigationOrder().map(key => [key,views[key]]).map(([key, [label, glyph]]) =>
 
-    `<a class="nav-button ${key === route() ? "active" : ""}" href="#${key}" aria-label="${label}" title="${label}" ${key === route() ? 'aria-current="page"' : ""}>${icon(glyph)}<span>${label}</span></a>`
+    `<a class="nav-button ${key === (route() === "calendar" ? "tasks" : route()) ? "active" : ""}" href="#${key}" aria-label="${label}" title="${label}${key === "tasks" ? " (Alt+Shift+T)" : key === "focus" ? " (Alt+Shift+F)" : ""}" ${key === (route() === "calendar" ? "tasks" : route()) ? 'aria-current="page"' : ""}>${icon(glyph)}<span>${label}</span></a>`
 
   ).join("");
 
@@ -559,7 +563,7 @@ function focusMarkup(large = false) {
 
   return `<section class="card focus-card ${large ? "large-focus" : ""}">
 
-    ${large ? "" : sectionTitle("timer", "Pomodoro", "Focus and break timer", `<button class="icon-button small" data-action="settings" data-id="timer" title="Timer settings" aria-label="Timer settings">${icon("settings")}</button>`)}
+    ${large ? "" : sectionTitle("timer", "Pomodoro", "Focus and break timer")}
 
     <div class="timer-content">
 
@@ -567,7 +571,7 @@ function focusMarkup(large = false) {
 
       <div class="timer-ring"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="track" cx="60" cy="60" r="54"/><circle class="progress" cx="60" cy="60" r="54" pathLength="100" stroke-dasharray="100 100"/></svg><div><div class="time" role="timer">25:00</div><span class="timer-caption">${timer.endsAt ? "In progress" : timer.id ? "Paused" : "Ready to start"}</span></div></div>
 
-      <div class="timer-buttons"><button class="button primary" data-action="timer-toggle">${icon(timer.endsAt ? "pause" : "play")} ${timer.endsAt ? "Pause" : timer.id ? "Resume" : "Start"}</button><button class="icon-button" data-action="timer-reset" aria-label="Reset timer" title="Reset timer">${icon("reset")}</button><button class="icon-button" data-action="timer-skip" aria-label="Skip phase" title="Skip phase">${icon("skip")}</button></div>
+      <div class="timer-buttons"><button class="button primary" data-action="timer-toggle" aria-keyshortcuts="Alt+Shift+S" title="Start a focus session with Alt+Shift+S">${icon(timer.endsAt ? "pause" : "play")} ${timer.endsAt ? "Pause" : timer.id ? "Resume" : "Start"}</button><button class="icon-button" data-action="timer-reset" aria-label="Reset timer" title="Reset timer">${icon("reset")}</button><button class="icon-button" data-action="timer-skip" aria-label="Skip phase" title="Skip phase">${icon("skip")}</button></div>
 
       <div class="rounds" aria-label="${completed} of ${settings.interval} rounds">${rounds}<span>${completed}/${settings.interval} rounds</span></div>
 
@@ -591,16 +595,16 @@ let spotifyOpen = false;
 let focusSound;
 let soundBusy=false;
 function soundSettings(){const value=settings.focusAudio;return {preset:soundPresets.some(([id])=>id===value?.preset)?value.preset:"brown",volume:Number.isFinite(value?.volume)?Math.max(0,Math.min(0.6,value.volume)):0.2};}
-function soundCard(){
-  const value=soundSettings();
-  return `<section class="card focus-sounds">${sectionTitle("music","Focus sounds","Find your working rhythm")}
-    <div class="sound-preset-grid">${soundPresets.map(([id,label,detail])=>`<button type="button" class="sound-preset ${value.preset===id?"active":""}" data-action="sound-preset" data-id="${id}" aria-pressed="${value.preset===id}"><strong>${label}</strong><small>${detail}</small></button>`).join("")}</div>
-    <div class="sound-controls"><button class="button primary" data-action="sound-toggle" ${soundBusy?"disabled":""}>${focusSound?.playing ? "Pause sound" : "Play sound"}</button><label class="field">Volume<input id="focus-volume" type="range" min="0" max="60" step="1" value="${Math.round(value.volume*100)}" aria-label="Focus sound volume"></label></div>
-    <p class="small-text muted" id="sound-status" role="status">${focusSound?.playing?"Playing on this device":"Choose a sound, then press Play"} · ${account&&!window.MobAndroid?"Preferences sync with your account":"Preferences saved on this device"}</p>
-    <p class="small-text muted">Headphones give binaural presets their stereo effect. Pick what feels comfortable; concentration benefits vary.</p>
-    <details class="sound-resources"><summary>Explore more sounds</summary><p><a href="https://mynoise.net/NoiseMachines/binauralBrainwaveGenerator.php" target="_blank" rel="noopener">myNoise binaural generator ↗</a></p><p><a href="https://noises.online/" target="_blank" rel="noopener">Noises.Online ambient mixer ↗</a></p><small>External players open separately. Built-in sounds work offline.</small></details>
+function soundCard() {
+  const { preset } = soundSettings();
+  return `<section class="card focus-sounds">
+    ${sectionTitle("music", "Focus sounds", "")}
+    <div class="sound-preset-grid">${soundPresets.map(([key, label]) =>
+      `<button type="button" class="sound-preset ${preset === key ? "active" : ""}" data-action="sound-preset" data-id="${key}" aria-pressed="${preset === key}"><strong>${label}</strong></button>`).join("")}</div>
+    <button class="button primary" data-action="sound-toggle" ${soundBusy ? "disabled" : ""}>${icon(focusSound?.playing ? "pause" : "play")} ${focusSound?.playing ? "Pause sound" : "Play sound"}</button>
   </section>`;
 }
+
 async function toggleFocusSound(){
  if(soundBusy)return;
  focusSound ||= createFocusAudio();
@@ -615,7 +619,7 @@ async function toggleFocusSound(){
 
 function focusView() {
 
-  return `${heading("Focus", "Choose a task and give it your full attention.", `<button class="icon-button" data-action="settings" data-id="timer" title="Timer settings" aria-label="Timer settings">${icon("settings")}</button>`)}
+  return `${heading("Focus", "Choose a task and give it your full attention.")}
 
     <div class="focus-layout">
 
@@ -629,10 +633,7 @@ function focusView() {
 
       <div class="focus-audio-column"><section class="card music-card">
 
-        ${sectionTitle("music", "Spotify", "Music for your focus sessions")}
-
         <div id="spotify-player"></div>
-
         <div class="form-actions" id="music-actions"></div>
 
       </section>${soundCard()}</div>
@@ -644,10 +645,8 @@ function focusView() {
 
 
 function renderFocus() {
-  const volumeFocused=document.activeElement?.id==="focus-volume";
   const soundRoot=$(".focus-sounds");
   if(soundRoot) soundRoot.outerHTML=soundCard();
-  if(volumeFocused) $("#focus-volume")?.focus({preventScroll:true});
 
   const stage = $("#focus-stage");
 
@@ -675,11 +674,11 @@ function renderFocus() {
 
     <div class="stage-tools">
 
-      <button class="button" data-action="motion" aria-pressed="${showMotion}">${icon("video")} ${showMotion ? "Pause video" : "Play video"}</button>
+      <button class="icon-button stage-icon" data-action="motion" aria-pressed="${showMotion}" aria-label="${showMotion ? "Pause video" : "Play video"}" title="${showMotion ? "Pause video" : "Play video"}">${icon("video")}</button>
 
-      <button class="button" data-action="theater" aria-pressed="${theater}">${icon("theater")} ${theater ? "Exit theater" : "Theater"}</button>
+      <button class="icon-button stage-icon" data-action="theater" aria-pressed="${theater}" aria-label="${theater ? "Exit theater" : "Theater"}" title="${theater ? "Exit theater" : "Theater"}">${icon("theater")}</button>
 
-      <button class="button" data-action="fullscreen" aria-pressed="${fullscreen}">${icon("fullscreen")} ${fullscreen ? "Exit fullscreen" : "Fullscreen"}</button>
+      <button class="icon-button stage-icon" data-action="fullscreen" aria-pressed="${fullscreen}" aria-label="${fullscreen ? "Exit fullscreen" : "Fullscreen"}" title="${fullscreen ? "Exit fullscreen" : "Fullscreen"}">${icon("fullscreen")}</button>
 
     </div>
 
@@ -687,7 +686,7 @@ function renderFocus() {
 
   const music=$(".music-card"),column=$(".focus-audio-column");
   if(music&&column){
-    if(theater||fullscreen){if(music.parentElement!==stage){stage.append(music);spotifyOpen=true;}music.classList.add("mini-spotify");}
+    if(theater||fullscreen){if(music.parentElement!==stage)stage.append(music);music.classList.add("mini-spotify");}
     else{if(music.parentElement!==column)column.prepend(music);music.classList.remove("mini-spotify");}
   }
   renderMusic();
@@ -712,7 +711,8 @@ function renderMusic() {
 
   const player = $("#spotify-player");
 
-  if (spotifyOpen) {
+  const expanded = theater || document.fullscreenElement === $("#focus-stage");
+  if (spotifyOpen && expanded) {
 
     url ||= "https://open.spotify.com/playlist/37i9dQZF1DWZeKCadgRdKQ";
 
@@ -738,7 +738,9 @@ function renderMusic() {
 
   const actions = $("#music-actions");
 
-  const markup = `<button class="button primary" data-action="spotify-player">${icon("music")} ${spotifyOpen ? "Close player" : "Open player"}</button><button class="button" data-action="spotify-link">${url && settings.spotify ? "Change link" : "Add your link"}</button>`;
+  const open = spotifyOpen && expanded;
+  const label = open ? "Close Spotify player" : "Open Spotify player";
+  const markup = `<button class="button spotify-launcher" data-action="spotify-player" aria-expanded="${open}" aria-label="${label}" title="${label}">${icon("spotify")}</button>${open ? '<button class="button" data-action="spotify-link">Change Spotify link</button>' : ""}`;
 
   if (actions.innerHTML !== markup) actions.innerHTML = markup;
 
@@ -782,38 +784,6 @@ async function fullScreen() {
 
 
 
-function heatmap(days, weeks = 16) {
-
-  const today = dayDate(day);
-
-  const first = offsetDay(day, -(today.getDay() + 6) % 7 - 7 * (weeks - 1));
-
-  const columns = Array.from({ length: weeks }, (_, week) => {
-
-    const cells = Array.from({ length: 7 }, (_, index) => {
-
-      const key = offsetDay(first, week * 7 + index);
-
-      const count = days.get(key) || 0;
-
-      const label = `${longDay(key)} · ${count} ${count === 1 ? "action" : "actions"}`;
-
-      return `<div class="heat-cell level${Math.min(count, 4)} ${key > day ? "future" : ""}" title="${escape(label)}"></div>`;
-
-    }).join("");
-
-    return `<div class="heat-week">${cells}</div>`;
-
-  }).join("");
-
-  const keys = [0,1,2,3,4].map(level => `<span class="heat-key level${level}"></span>`).join("");
-
-  return `<div class="heat-body"><div class="heat-strip" style="--weeks:${weeks}" role="img" aria-label="Activity heatmap for the past ${weeks} weeks">${columns}</div><div class="heat-legend"><span>${formatDay(first, { month:"short", day:"numeric" })} – ${formatDay(day, { month:"short", day:"numeric" })}</span><span class="inline">Less ${keys} More</span></div></div>`;
-
-}
-
-
-
 function todayView() {
 
   const todays = tasks.filter(task => task.date === day);
@@ -852,7 +822,7 @@ function todayView() {
 
     ${upcoming ? `<section class="card next-reminder">${sectionTitle("bell", "Next reminder", escape(upcoming.title) + " · " + escape(new Date(reminderTimestamp(upcoming)).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })), `<button class="text-action" data-action="task-edit" data-id="${escape(upcoming.id)}">Edit</button>`)}</section>` : ""}
 
-    <section class="card activity-card">${sectionTitle("activity", "Your rhythm", "Completed tasks and focus sessions")}${heatmap(days)}</section>
+
 
     ${achievementView()}`;
 
@@ -905,7 +875,7 @@ function tasksView() {
 
   const filters = Object.entries(options).map(([value, label]) => `<button class="${taskFilter === value ? "active" : ""}" aria-pressed="${taskFilter === value}" data-action="task-filter" data-id="${value}">${label}</button>`).join("");
 
-  return `${heading("Tasks", "Keep track of what you want to get done.")}<section class="card">
+  return `${heading("Tasks", "Keep track of what you want to get done.", `<a class="button" href="#calendar" aria-keyshortcuts="Alt+Shift+C" title="Calendar (Alt+Shift+C)">${icon("calendar")} Calendar</a>`)}<section class="card">
 
     <div class="task-tools"><div class="segments" aria-label="Filter tasks">${filters}</div><input id="task-search" type="search" aria-label="Search tasks" placeholder="Search tasks" value="${escape(taskSearch)}"></div>
 
@@ -947,7 +917,7 @@ function calendarView() {
 
   const list = tasks.filter(task => task.date === selectedDay);
 
-  return `${heading("Calendar", "See your tasks by due date.")}<div class="calendar-layout"><section class="card">
+  return `${heading("Calendar", "See your tasks by due date.", `<a class="button" href="#tasks">${icon("tasks")} Tasks</a>`)}<div class="calendar-layout"><section class="card">
 
     <div class="card-header"><h2>${dateWithYear(month)}</h2><div class="section-actions"><button class="icon-button small" data-action="month-prev" aria-label="Previous month">${icon("chevron-left")}</button><button class="text-action" data-action="month-today">Today</button><button class="icon-button small" data-action="month-next" aria-label="Next month">${icon("chevron-right")}</button></div></div>
 
@@ -959,7 +929,7 @@ function calendarView() {
 
 async function refreshLeaderboard(force = false) {
 
-  if (!account || !handle) return;
+  if (!account || !api) return;
 
   if (leaderboardStatus === "loading" || (!force && Date.now() - lastRanking < (window.MobAndroid?300_000:60_000))) return;
 
@@ -1011,15 +981,16 @@ function socialView() {
 
   const accountAction = !account ? '<button class="button primary" data-action="account">Login</button>'
 
-    : !handle ? '<button class="button primary" data-action="onboard">Choose username</button>'
+    : !handleLoaded ? `<span class="muted">${handleLoadFailed ? "Username unavailable. Reload to retry." : "Loading your profile…"}</span>`
+    : !handle ? '<button class="button primary" data-action="onboard">Choose username to share</button>'
 
     : `<label class="switch"><input type="checkbox" id="share-score" role="switch" ${settings.shareScore ? "checked" : ""}> Show my score</label>`;
 
   let empty = "No scores yet. Finish a Pomodoro and join the board.";
 
-  if (account && !handleLoaded && leaderboardStatus === "schema") empty = "Rankings are waiting for the account database update.";
+  if (leaderboardStatus === "schema") empty = "Rankings are waiting for the account database update.";
 
-  else if (!account || !handle) empty = "Log in with a Mob account and claim your username to see the rankings.";
+  else if (!account) empty = "Log in to see the rankings.";
 
   else if (leaderboardStatus === "loading") empty = "Loading rankings…";
 
@@ -1031,7 +1002,7 @@ function socialView() {
 
       ${rows ? `<ol class="leader-list">${rows}</ol>` : `<p class="empty">${empty}</p>`}
 
-      ${account && handle ? '<div class="task-footer"><button class="text-action" data-action="rank-refresh">Refresh rankings</button></div>' : ""}
+      ${account ? '<div class="task-footer"><button class="text-action" data-action="rank-refresh">Refresh rankings</button></div>' : ""}
 
     </section>`;
 
@@ -1123,7 +1094,7 @@ function drawBudget() {
 
           + (nativeStatus.desktop?.startup ? " · Starts at sign-in" : " · Enable Start Mob at sign-in from the tray")
 
-        : extensionAvailable ? (extensionStatus?.linked ? "Extension linked · " + (extensionStatus.tracking ? "Website tracking on" : "Website tracking off") + " · " + (extensionStatus.granted ? "YouTube permission allowed" : "YouTube permission missing") + " · " + (extensionStatus.syncStatus || "Waiting to sync") : "Extension installed · link your browser to enable tracking and rules") : "Mob web time only · link the extension for other tabs";
+        : extensionAvailable ? (extensionStatus?.linked ? "Extension linked · " + (extensionStatus.tracking ? "Website tracking on" : "Website tracking off") + (extensionStatus.granted ? "" : " · YouTube access needed") + " · " + (extensionStatus.syncStatus || "Waiting to sync") : "Extension installed") : "Install the extension to track browser tabs";
 
   }
 
@@ -1152,37 +1123,18 @@ function drawBudget() {
 
 
 function flowView() {
-  if(window.MobAndroid)return `${heading("Flow", "Your focus, with room to grow.")}<section class="card coming-soon">${icon("flow")}<span class="pill">Coming soon</span><h2>Flow for Android</h2><p>App usage tracking and usage limits are not available on Android yet.</p><p class="muted">For now, use tasks, Pomodoro, Social and local YouTube Shorts blocking. Website and Windows usage stay on those devices.</p><button class="button" data-action="settings" data-id="shorts">Set up Shorts blocking</button></section>`;
+  if(window.MobAndroid)return `${heading("Flow", "Your focus, with room to grow.")}<section class="card coming-soon">${icon("flow")}<span class="pill">Coming soon</span><h2>Flow for Android</h2><p>App usage tracking and usage limits are not available on Android yet.</p><p class="muted">For now, use tasks, Pomodoro, Social and local YouTube Shorts blocking. Website and Windows usage stay on those devices.</p></section>`;
 
   const sync = account ? "Usage sync runs about every 5 minutes while connected." : "Log in to sync your activity and YouTube budget.";
 
-  const platform = window.MobAndroid
-
-    ? '<button type="button" class="button" data-action="native-blocking">Allow app blocking</button> <button type="button" class="button" data-action="native-usage">Allow usage access</button>'
-
-    : extensionAvailable
-
-      ? extensionStatus?.linked ? '<button type="button" class="button" data-action="unlink-extension">Unlink browser</button>' : '<button type="button" class="button" data-action="pair-extension">Link browser & enable tracking</button>'
-
-      : '<small class="muted">Install the Mob extension in Chrome or Edge to block YouTube in the browser.</small>';
-
-  return `${heading("Flow", "", '<button class="button" data-action="onboard">Permissions</button>')}
-
-    <div class="card flow-control"><label class="switch"><input type="checkbox" id="flow-tracking" role="switch" ${trackingAllowed ? "checked" : ""}> Track activity on this device</label><p class="small-text muted">${sync} Website limits need website tracking enabled in the linked extension.</p></div>
-
+  const browserSetup = window.MobDesktop ? "" : extensionStatus?.linked
+    ? '<label class="switch browser-tracking"><input id="browser-tracking" type="checkbox" role="switch" ' + (browserTracking ? "checked" : "") + '> Track active browser tabs</label>'
+    : `<div class="card flow-control">${extensionAvailable ? "<p>Sign in and open Flow to connect your browser.</p>" : extensionDownload()}</div>`;
+  return `${heading("Flow")}
+    ${window.MobDesktop ? `<div class="card flow-control"><label class="switch"><input type="checkbox" id="flow-tracking" role="switch" ${trackingAllowed ? "checked" : ""}> Track foreground apps</label><p class="small-text muted">${sync}</p></div>` : browserSetup}
     <p class="small-text muted" id="device-tracking-status" role="status"></p>
-
     <div id="flow-dashboard"></div>${flowControls.render()}
-
     <div class="flow-layout">
-
-      <section class="card flow-safety">${sectionTitle("flow", "Browser and device permissions", "")}
-
-        ${platform}
-
-        ${extensionAvailable && extensionStatus?.linked ? '<label class="switch"><input id="browser-tracking" type="checkbox" role="switch" ' + (browserTracking ? "checked" : "") + '> Track website time by domain</label>' : ""}
-
-      </section>
 
       <section class="card flow-safety">${sectionTitle("shield", "Focus blocking", "")}
 
@@ -1262,6 +1214,11 @@ function render() {
   const page = route();
 
   const nav = navMarkup();
+  document.body.dataset.view = page;
+  const settingsLink = $("#settings-link");
+  settingsLink.classList.toggle("active", page === "settings");
+  if (page === "settings") settingsLink.setAttribute("aria-current", "page");
+  else settingsLink.removeAttribute("aria-current");
   document.body.classList.toggle("android-app",Boolean(window.MobAndroid));
   $(".mobile-account").innerHTML=avatarMarkup();
 
@@ -1277,7 +1234,7 @@ function render() {
 
   $("#crumb").textContent = views[page][0];
 
-  const markup = { today: todayView, tasks: tasksView, calendar: calendarView, social: socialView, focus: focusView, flow: flowView };
+  const markup = { today: todayView, tasks: tasksView, calendar: calendarView, social: socialView, focus: focusView, flow: flowView, settings: settingsView };
 
   const active = document.activeElement;
 
@@ -1289,7 +1246,9 @@ function render() {
 
   const activeInView = active && $("#view").contains(active);
 
-  if (page !== "focus" || !$("#focus-stage")) $("#view").innerHTML = markup[page]();
+  const editingSettings = page === "settings" && $("#view form")?.contains(active) && !refreshSettingsView;
+  refreshSettingsView = false;
+  if (!editingSettings && (page !== "focus" || !$("#focus-stage"))) $("#view").innerHTML = markup[page]();
 
   if (page === "focus") renderFocus();
 
@@ -1674,7 +1633,7 @@ dialog.addEventListener("close", () => {
   dialogType = "";
 
   if(previous==="welcome"){save("welcome:"+platformName(),true);return;}
-  if (previous !== "onboard") maybeOnboard();
+  if (previous !== "onboard" && previous !== "browser-consent") maybeOnboard();
 
 });
 
@@ -1720,14 +1679,22 @@ function numberField(name, label, min, max) {
 
 
 
-function settingsDialog(tab = "appearance") {
+let settingsTab = "appearance";
+let refreshSettingsView = false;
+function openSettings(tab = "appearance") {
+  settingsTab = tab;
+  refreshSettingsView = true;
+  if (route() === "settings") render();
+  else location.hash = "settings";
+}
+function settingsView(tab = settingsTab) {
 
   const tabs = { appearance: "Appearance", timer: "Timer", ...(window.MobAndroid?{shorts:"Shorts",navigation:"Navigation"}:{}) };
   if(!tabs[tab])tab="appearance";
 
   const nav = `<div class="segments settings-tabs" aria-label="Settings sections">${Object.entries(tabs).map(([key, label]) =>
 
-    `<button type="button" class="${key === tab ? "active" : ""}" aria-pressed="${key === tab}" data-action="settings" data-id="${key}">${label}</button>`).join("")}</div>`;
+    `<button type="button" class="${key === tab ? "active" : ""}" aria-pressed="${key === tab}" data-action="settings-tab" data-id="${key}">${label}</button>`).join("")}</div>`;
 
   const themeOptions = {
 
@@ -1770,8 +1737,8 @@ function settingsDialog(tab = "appearance") {
   </form>`;
 
   const shorts = `<div class="dialog-body"><h3>YouTube Shorts</h3><p>Keep regular YouTube videos and dismiss the Shorts player locally.</p><label class="switch"><input id="shorts-toggle" type="checkbox" ${settings.blockShorts?"checked":""}> Block YouTube Shorts</label><p class="permission-status" role="status">${settings.blockShorts?(nativeStatus.blocking?"Blocking is enabled.":"Turn on Mob in Android Accessibility settings to finish setup."):"Blocking is off."}</p><button class="button" data-action="native-blocking">Open Accessibility settings</button><small class="muted">Mob reads only the active YouTube screen to recognize Shorts. No app usage is collected or uploaded.</small></div>`;
-  const navigation = `<div class="dialog-body"><p>Arrange the bottom bar in the order that works for you. Changes stay on this device.</p><ol class="navigation-editor">${navigationOrder().map((key,i)=>`<li><span>${icon(views[key][1])} ${views[key][0]}</span><button class="icon-button small" data-action="nav-move" data-id="${key}:-1" aria-label="Move ${views[key][0]} earlier" ${i===0?"disabled":""}>${icon("chevron-left")}</button><button class="icon-button small" data-action="nav-move" data-id="${key}:1" aria-label="Move ${views[key][0]} later" ${i===Object.keys(views).length-1?"disabled":""}>${icon("chevron-right")}</button></li>`).join("")}</ol><button class="button" data-action="nav-reset">Reset order</button></div>`;
-  modal("settings", "Settings", nav + ({ appearance, timer: timerForm, shorts, navigation })[tab]);
+  const navigation = `<div class="dialog-body"><p>Arrange the bottom bar in the order that works for you. Changes stay on this device.</p><ol class="navigation-editor">${navigationOrder().map((key,i)=>`<li><span>${icon(views[key][1])} ${views[key][0]}</span><button class="icon-button small" data-action="nav-move" data-id="${key}:-1" aria-label="Move ${views[key][0]} earlier" ${i===0?"disabled":""}>${icon("chevron-left")}</button><button class="icon-button small" data-action="nav-move" data-id="${key}:1" aria-label="Move ${views[key][0]} later" ${i===navigationOrder().length-1?"disabled":""}>${icon("chevron-right")}</button></li>`).join("")}</ol><button class="button" data-action="nav-reset">Reset order</button></div>`;
+  return `${heading("Settings")}<section class="card settings-page">${nav}${({ appearance, timer: timerForm, shorts, navigation })[tab]}</section>`;
 
 }
 
@@ -1833,7 +1800,7 @@ function accountDialog(mode = "login") {
 
     modal("account", "Your account", `<div class="dialog-body"><div class="inline">${profileMarkup()}</div><p class="muted">${escape(account.email || "")}</p>
 
-      <div class="account-actions"><button class="button" data-action="settings">${icon("settings")} Settings</button><button class="button" data-action="onboard">${handle ? "Setup and permissions" : "Choose username"}</button><button class="button" data-action="account-password">Set a password</button><button class="button" data-action="signout">Log out</button><button class="button danger" data-action="delete-account">Delete account</button></div></div>`);
+      <div class="account-actions">${handleLoaded && !handle ? '<button class="button" data-action="onboard">Choose username</button>' : ""}<button class="button" data-action="account-password">Set a password</button><button class="button" data-action="signout">Log out</button><button class="button danger" data-action="delete-account">Delete account</button></div></div>`);
 
     return;
 
@@ -1887,16 +1854,47 @@ function welcome(step=0){
   const pages=[
     ["Welcome to Mob", "Plan your day with tasks and calendar, then focus on one thing at a time. Guest tasks stay on this device; logging in safely merges them into your account."],
     ["Make room for focus", "Use Pomodoro, local focus sounds and Spotify. Open Theater for a quiet timer and a compact Spotify player. Social is optional: choose whether to share your focus score."],
-    [native?"Your Android setup":desktop?"Your Windows setup":"Connect your browser",native?"Reorder the bottom bar in Settings → Navigation. Turn on Shorts blocking in Settings → Shorts; Android asks for accessibility only for that feature. Flow is coming soon; Android app usage is not collected.":desktop?"Keep Mob running or in the tray to track foreground apps. Link the browser extension for active-tab usage and website blocking. Choose visited apps or websites in Flow to set limits.":"Install and link the Mob extension in Flow. It tracks only your actively focused tab and enforces website limits, Pomodoro blocking and Shorts protection. This website does not track other tabs by itself."]
+    [native?"Your Android setup":desktop?"Your Windows setup":"Connect your browser",native?"Reorder the bottom bar in Settings → Navigation. Turn on Shorts blocking in Settings → Shorts; Android asks for accessibility only for that feature. Flow is coming soon; Android app usage is not collected.":desktop?"Keep Mob running or in the tray to track foreground apps. Link the browser extension for active-tab usage and website blocking. Choose visited apps or websites in Flow to set limits.":"Download the Mob extension to track active tabs and use website limits in Flow."]
   ];
-  modal("welcome",`${step+1} of 3 · ${pages[step][0]}`,`<div class="dialog-body welcome-journey"><img class="onboard-logo" src="./icon.svg" alt="Mob"><p>${pages[step][1]}</p><p class="small-text muted">You can revisit setup from Account at any time. Permissions are optional and requested when you enable a feature.</p><div class="form-actions"><button class="button" data-action="setup-finish">Skip for now</button>${step?`<button class="button" data-action="welcome" data-id="${step-1}">Back</button>`:""}<button class="button primary" data-action="${step===2?"onboard":"welcome"}" data-id="${step===2?1:step+1}">${step===2?"Set up features":"Next"}</button></div></div>`);
+  modal("welcome",`${step+1} of 3 · ${pages[step][0]}`,`<div class="dialog-body welcome-journey"><img class="onboard-logo" src="./icon.svg" alt="Mob"><p>${pages[step][1]}</p>${step===2&&!native?extensionDownload():""}<p class="small-text muted">You can revisit setup from Account at any time. Permissions are optional and requested when you enable a feature.</p><div class="form-actions"><button class="button" data-action="setup-finish">Skip for now</button>${step?`<button class="button" data-action="welcome" data-id="${step-1}">Back</button>`:""}<button class="button primary" data-action="${step===2?"onboard":"welcome"}" data-id="${step===2?1:step+1}">${step===2?"Set up features":"Next"}</button></div></div>`);
+}
+
+const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.1/Mob-Browser-Extension-v1.6.3.zip";
+function extensionDownload() {
+  return `<a class="button primary" href="${extensionURL}">Download Mob extension</a><p class="small-text muted">Extract the ZIP and load it from Chrome or Edge’s Extensions page using Developer mode. Reload Flow when it’s installed.</p>`;
+}
+let browserPrompt = "";
+let pairingKey = "";
+const browserConsentKey = () => `browser-consent:${scope()}:${extensionStatus?.device || ""}`;
+async function connectBrowser() {
+  if (companionBusy || !account || !extensionStatus?.device || extensionStatus.linked) return;
+  const uid = account.uid;
+  const browser = extensionStatus.device;
+  const key = browserConsentKey();
+  if (pairingKey === key) return;
+  companionBusy = true;
+  pairingKey = key;
+  try {
+    const connection = await api.pairCompanion(browser);
+    if (account?.uid === uid && extensionStatus?.device === browser) extensionMessage("pair", connection);
+  } catch {
+    toast("Couldn’t connect the browser. Reload Flow to try again.");
+  } finally { companionBusy = false; }
+}
+function maybeConnectBrowser() {
+  if (route() !== "flow" || window.MobAndroid || !account || !extensionStatus?.device || extensionStatus.linked || dialog.open) return;
+  const key = browserConsentKey();
+  if (read(key, false)) { void connectBrowser(); return; }
+  if (browserPrompt === key) return;
+  browserPrompt = key;
+  modal("browser-consent", "Enable browser activity?", `<div class="dialog-body"><p>Link the Mob extension to this account. It records time by website domain for your active tab and syncs aggregated usage. You can turn tracking off in Flow.</p><div class="form-actions"><button class="button" data-action="defer-extension">Not now</button><button class="button primary" data-action="allow-extension">Allow</button></div></div>`);
 }
 
 function maybeOnboard() {
 
   if (!settings.onboarded && !read("welcome:"+platformName(),false) && !dialog.open) {welcome();return;}
 
-  if (account && handleLoaded && (!handle || !read("permissions:" + scope(), false)) && !dialog.open) onboard(1);
+  if (route() === "flow") maybeConnectBrowser();
 
 }
 
@@ -1933,33 +1931,8 @@ function onboard(step = 1) {
   if(window.MobAndroid){
     modal("onboard","Set up Mob on Android",`<div class="dialog-body"><p>Tasks sync with your account. Social shares completed focus minutes only when you opt in and refreshes every five minutes. Your timer and Shorts blocker work locally.</p><label class="switch"><input id="shorts-toggle" type="checkbox" ${settings.blockShorts?"checked":""}> Block YouTube Shorts</label><p class="permission-status">${nativeStatus.blocking?"Accessibility is ready.":"Accessibility is needed only for Shorts blocking."}</p><button class="button" data-action="native-blocking">Set up Shorts blocking</button><button class="button" data-action="notifications">Set up reminders</button><button class="button primary" data-action="setup-finish">Finish setup</button></div>`);return;
   }
-  if (permissionJourney === 1) {
+  modal("onboard", "Set up Flow", `<div class="dialog-body">${extensionDownload()}<div class="form-actions"><button class="button primary" data-action="setup-finish">Done</button></div></div>`);
 
-    modal("onboard", "1 of 2 · Tracking and limits", `<form id="onboard-tracking" class="dialog-body">
-
-      <p class="muted">Choose what Mob tracks and what it can block. Settings sync between web and Windows. Enable foreground tracking on Windows, or link the extension for website usage.</p>
-
-      ${switchField("flowTracking", window.MobDesktop ? "Track foreground apps" : "Use the extension for website tracking")}${switchField("blockShorts", "Block YouTube Shorts")}
-
-      <p class="muted">Set all app and website budgets in Flow using Add limit.</p>
-
-      <p class="muted">In Flow, choose visited apps and websites with Add limit. Link the browser extension to track active tabs and enforce website rules. Windows tracking needs Mob running, even in the tray.</p>
-
-      <div class="form-actions"><button class="button primary" type="submit">Continue</button></div></form>`);
-
-  } else {
-
-    modal("onboard", "2 of 2 · Focus and reminders", `<form id="onboard-form" class="dialog-body">
-
-      ${numberField("focusGoal", "Focus sessions per day", 1, 20)}
-
-      <button class="button" type="button" data-action="notifications-enable">Allow device notifications</button><small class="muted">Receive alerts about tasks and finished timers on this device.</small><p class="permission-status" aria-live="polite">${read("device-notifications", false) ? "Notifications enabled." : ""}</p>
-
-      ${account ? switchField("shareScore", "Show my username and focus minutes on the global leaderboard") : ""}
-
-      <div class="form-actions"><button class="button" type="button" data-action="onboard" data-id="1">Back</button><button class="button primary" type="submit">Finish setup</button></div></form>`);
-
-  }
 
 }
 
@@ -2068,6 +2041,10 @@ function watchAccount(user, event) {
 
 
   focusSound?.stop();
+  if (account) {
+    const previous = Object.fromEntries(devicePreferenceKeys.map(key => [key, settings[key]]));
+    save("device-preferences", { ...previous, ...devicePreferences() });
+  }
   account = user;
   achievementReady={tasks:false,sessions:Boolean(window.MobAndroid)};
 
@@ -2086,6 +2063,7 @@ function watchAccount(user, event) {
   }
 
   handleLoaded = false;
+  handleLoadFailed = false;
 
   handle = "";
 
@@ -2099,7 +2077,7 @@ function watchAccount(user, event) {
 
     guest = read("guest", guest);
 
-    settings = { ...defaults, ...guest.settings };
+    settings = { ...defaults, ...guest.settings, ...devicePreferences() };
 
     tasks = guest.tasks;
 
@@ -2135,7 +2113,7 @@ function watchAccount(user, event) {
 
 
 
-  settings = { ...defaults, ...read("android-settings:"+uid,{}) };
+  settings = { ...defaults, ...read("android-settings:"+uid,{}), ...devicePreferences() };
 
   tasks = [];
 
@@ -2156,6 +2134,7 @@ function watchAccount(user, event) {
     handleLoaded = true;
 
     render();
+    maybeConnectBrowser();
 
     if (profileLoaded || window.MobAndroid) {
 
@@ -2175,11 +2154,12 @@ function watchAccount(user, event) {
 
     if (account?.uid !== uid) return;
 
-    leaderboardStatus = error.code === "PGRST205" ? "schema" : "failed";
+    handleLoadFailed = true;
+    render();
 
-    if (route() === "social") render();
+    if (route() === "social") void refreshLeaderboard(true);
 
-    toast(leaderboardStatus === "schema" ? "Username setup is waiting for the account database update." : "Couldn’t load your username. Reopen Mob to retry.");
+    toast(error.code === "PGRST205" ? "Username setup is waiting for the account database update." : "Couldn’t load your username. Reload Mob to retry.");
 
   });
 
@@ -2190,7 +2170,12 @@ function watchAccount(user, event) {
       if (account?.uid !== uid) return;
 
       const previousAudio=soundSettings();
-      settings = { ...defaults, ...data };
+      settings = { ...defaults, ...data, ...devicePreferences() };
+      if (data) {
+        const preferences = devicePreferences();
+        const incoming = Object.fromEntries(devicePreferenceKeys.filter(key => data[key] != null && !Object.hasOwn(preferences, key)).map(key => [key, data[key]]));
+        if (Object.keys(incoming).length) save("device-preferences", { ...preferences, ...incoming });
+      }
       if(focusSound?.playing){
         if(soundSettings().preset!==previousAudio.preset){focusSound.stop();toast("Sound preferences updated. Press Play to listen.");}
         else focusSound.setVolume(soundSettings().volume);
@@ -2257,6 +2242,8 @@ function watchAccount(user, event) {
   ];
 
   if (event === "PASSWORD_RECOVERY") recoveryDialog();
+  if (route() === "social") void refreshLeaderboard();
+  maybeConnectBrowser();
 
   render();
 
@@ -2306,7 +2293,13 @@ function changeMonth(delta) {
 
 
 
+function toggleMobileMenu(open = !document.body.classList.contains("mobile-menu-open")) {
+  document.body.classList.toggle("mobile-menu-open", open);
+  $("#mobile-menu")?.setAttribute("aria-expanded", String(open));
+}
+
 const actions = {
+  "mobile-menu": () => toggleMobileMenu(),
   "sound-toggle": toggleFocusSound,
   "sound-preset": async preset=>{
     if(soundBusy || !soundPresets.some(([id])=>id===preset))return;
@@ -2384,11 +2377,11 @@ const actions = {
 
   "timer-skip": () => setTimer(nextTimer(timer, settings, Date.now(), false)),
 
-  "settings": settingsDialog,
+  "settings-tab": openSettings,
   "welcome": welcome,
   "setup-finish": finishSetup,
-  "nav-move": value=>{const [key,delta]=value.split(":");const order=navigationOrder(),at=order.indexOf(key),to=at+Number(delta);if(at>=0&&to>=0&&to<order.length){[order[at],order[to]]=[order[to],order[at]];save("navigation-order",order);render();settingsDialog("navigation");}},
-  "nav-reset": ()=>{save("navigation-order",[]);render();settingsDialog("navigation");},
+  "nav-move": value=>{const [key,delta]=value.split(":");const order=navigationOrder(),at=order.indexOf(key),to=at+Number(delta);if(at>=0&&to>=0&&to<order.length){[order[at],order[to]]=[order[to],order[at]];save("navigation-order",order);render();openSettings("navigation");}},
+  "nav-reset": ()=>{save("navigation-order",[]);render();openSettings("navigation");},
 
   "sidebar": () => {
 
@@ -2420,7 +2413,11 @@ const actions = {
 
   "fullscreen": fullScreen,
 
-  "spotify-player": () => { spotifyOpen = !spotifyOpen; render(); },
+  "spotify-player": () => {
+    if (!theater && !document.fullscreenElement) { theater = true; spotifyOpen = true; }
+    else spotifyOpen = !spotifyOpen;
+    render();
+  },
 
   "spotify-link": () => {
 
@@ -2462,10 +2459,6 @@ const actions = {
 
   },
 
-  "flow-privacy": () => saveSettings({hideUsage:!settings.hideUsage}),
-
-  "flow-list": () => saveSettings({hideList:!settings.hideList}),
-
   "flow-hide": key => flow.manage("hide", key).catch(writeError),
 
   "flow-show": key => flow.manage("show", key).catch(writeError),
@@ -2488,30 +2481,13 @@ const actions = {
 
   "exact-reminders": () => nativeMessage("exact-reminders"),
 
-  "pair-extension": async () => {
-
-    if (!account || !handle) { accountDialog(); return; }
-
-    if (companionBusy || !extensionStatus?.device) return;
-
-    companionBusy = true;
-
-    const uid = account.uid;
-
-    try {
-
-      const connection = await api.pairCompanion(extensionStatus.device);
-
-      if (account?.uid !== uid) return;
-
-      extensionMessage("pair", connection);
-
-    } catch { toast("Couldn’t link the extension. Try again."); }
-
-    finally { companionBusy = false; }
-
+  "allow-extension": () => {
+    if (!account || !extensionStatus?.device) return;
+    save(browserConsentKey(), true);
+    closeDialog();
+    void connectBrowser();
   },
-
+  "defer-extension": () => { browserPrompt = browserConsentKey(); closeDialog(); },
   "unlink-extension": async () => {
 
     try {
@@ -2578,7 +2554,6 @@ document.addEventListener("click", event => {
 
 document.addEventListener("change", event => {
 
-  if(event.target.id==="focus-volume") saveSettings({focusAudio:{...soundSettings(),volume:Number(event.target.value)/100}});
   if (event.target.id === "focus-task") setTimer({ ...timer, taskId: event.target.value });
 
   if (event.target.id === "flow-list-filter") {
@@ -2621,7 +2596,7 @@ document.addEventListener("change", event => {
 
     saveSettings({ blockShorts: event.target.checked });
 
-    if(window.MobAndroid&&dialogType==="settings")settingsDialog("shorts");
+    if(window.MobAndroid&&route()==="settings")openSettings("shorts");
     $("#shorts-toggle")?.focus();
 
   }
@@ -2631,7 +2606,6 @@ document.addEventListener("change", event => {
 
 
 document.addEventListener("input", event => {
-  if(event.target.id==="focus-volume") focusSound?.setVolume(Number(event.target.value)/100);
 
   if (event.target.id === "task-search") {
 
@@ -2756,10 +2730,9 @@ document.addEventListener("submit", async event => {
     for (const name of ["autoBreak", "autoFocus", "sound", "motion"]) changes[name] = values.has(name);
 
     clipOverride = undefined;
+    refreshSettingsView = true;
 
     saveSettings(changes);
-
-    closeDialog();
 
     toast("Timer settings saved");
 
@@ -2799,12 +2772,10 @@ document.addEventListener("submit", async event => {
 
       }
 
-      if (!form.isConnected || !dialog.open || scope() !== owner) return;
+      if (!form.isConnected || route() !== "settings" || scope() !== owner) return;
 
+      refreshSettingsView = true;
       saveSettings(changes);
-
-      closeDialog();
-
       toast("Theme applied");
 
     } catch (error) {
@@ -2925,34 +2896,12 @@ document.addEventListener("submit", async event => {
 
       sendPlatformSettings();
 
-      onboard(1);
+      closeDialog();
+      void refreshLeaderboard(true);
 
     } catch (error) { formError(form, error instanceof Error ? error.message : "Couldn’t save your username. Try again."); }
 
     finally { submit.disabled = false; }
-
-  } else if (form.id === "onboard-tracking") {
-
-    saveSettings({
-
-      flowTracking: values.has("flowTracking"), blockShorts: values.has("blockShorts"),
-
-      dailyLimit: Number(values.get("dailyLimit"))
-
-    });
-
-    onboard(2);
-
-  } else if (form.id === "onboard-form") {
-
-    save("welcome:"+platformName(),true);
-    save("permissions:" + scope(), true);
-
-    saveSettings({ focusGoal: Number(values.get("focusGoal")), onboarded: true, shareScore: Boolean(account && values.has("shareScore")) });
-
-    closeDialog();
-
-    if (route() === "social") void refreshLeaderboard(true);
 
   } else if (form.id === "auth-form" && api) {
 
@@ -3009,14 +2958,45 @@ window.addEventListener("hashchange", () => {
   render();
 
   if (route() === "social") void refreshLeaderboard();
-
+  if (route() === "flow") maybeConnectBrowser();
+  toggleMobileMenu(false);
+  if (route() === "tasks" && searchAfterNavigation) {
+    searchAfterNavigation = false;
+    $("#task-search")?.focus();
+  }
   window.scrollTo(0, 0);
 
 });
 
 document.addEventListener("fullscreenchange", () => { if (route() === "focus") render(); });
 
+let searchAfterNavigation = false;
 document.addEventListener("keydown", event => {
+  if (event.defaultPrevented || event.isComposing || event.repeat || dialog.open) return;
+  const key = event.key.toLowerCase();
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && key === "k") {
+    event.preventDefault();
+    if (route() === "tasks") $("#task-search")?.focus();
+    else { searchAfterNavigation = true; location.hash = "tasks"; }
+    return;
+  }
+  if (event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.target.closest?.("input,textarea,select,[contenteditable]")) {
+    const target = { t: "tasks", c: "calendar", f: "focus", s: "focus" }[key];
+    if (target) {
+      event.preventDefault();
+      location.hash = target;
+      if (key === "s" && !timer.endsAt) {
+        if (timer.mode !== "focus") setTimer(newTimer(settings, "focus", { rounds: timer.rounds, taskId: timer.taskId }));
+        actions["timer-toggle"]();
+      }
+      return;
+    }
+  }
+  if (event.key === "Escape" && document.body.classList.contains("mobile-menu-open")) {
+    toggleMobileMenu(false);
+    $("#mobile-menu")?.focus();
+    return;
+  }
 
   if (event.key === "Escape" && theater && !dialog.open) {
 
@@ -3046,7 +3026,7 @@ window.addEventListener("storage", event => {
 
     guest = read("guest", guest);
 
-    settings = { ...defaults, ...guest.settings };
+    settings = { ...defaults, ...guest.settings, ...devicePreferences() };
 
     tasks = guest.tasks;
 
@@ -3124,14 +3104,16 @@ window.addEventListener("message", event => {
 
     }
 
-    const changed = !extensionAvailable || extensionStatus?.linked !== status.linked;
+    const changed = !extensionAvailable || extensionStatus?.linked !== status.linked || extensionStatus?.tracking !== status.tracking;
 
     extensionAvailable = true;
 
     extensionStatus = status;
+    if (typeof status.tracking === "boolean") browserTracking = status.tracking;
     flow.importBrowser(status);
 
     if (changed) sendFocusPolicy();
+    maybeConnectBrowser();
 
     if (route() === "flow" && changed) render();
 

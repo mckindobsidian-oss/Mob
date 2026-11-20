@@ -17,9 +17,7 @@ export function createFlow({ read, save, device, source, enabled, active, native
   const draw = () => {
     const root = document.querySelector("#flow-dashboard");
     if (!root) return;
-    const visibility=privacy?.() || {usage:read("usage-private",false),list:read("usage-list-hidden",false)};
-    root.classList.toggle("usage-private", visibility.usage);
-    root.classList.toggle("usage-list-hidden", visibility.list);
+
     const view=api ? combinedSnapshot() : localSnapshot();
     view.listFilter=read("flow-list-filter","all");
     renderFlow(root, view, Boolean(api));
@@ -28,10 +26,7 @@ export function createFlow({ read, save, device, source, enabled, active, native
       ? (busy ? "Syncing…" : syncError ? syncError+" · usage queued" : navigator.onLine ? "Usage saved on this device" : "Offline · usage queued")
         + (data.syncedAt ? " · Last synced " + new Date(data.syncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : " · Waiting for first sync")
       : "Saved on this device · Log in to sync";
-    const privacyButton=root.querySelector('[data-action="flow-privacy"]');
-    if (privacyButton) privacyButton.setAttribute("aria-pressed",String(root.classList.contains("usage-private")));
-    const list=root.querySelector('[data-action="flow-list"]');
-    if (list) list.setAttribute("aria-pressed",String(root.classList.contains("usage-list-hidden")));
+
   };
   let local = read(storage(), { epoch: 0, hidden: [], rows: {} });
   let companion=null,pendingSnapshot=false;
@@ -319,7 +314,7 @@ function renderFlow(root, data, signedIn) {
   const focusId=focused?.id;
   const action=focused?.dataset?.action;
   const item=focused?.dataset?.id;
-  root.innerHTML = '<p id="flow-sync-status" class="small-text muted" role="status"></p><div class="form-actions"><button class="button" data-action="flow-privacy" aria-pressed="' + root.classList.contains("usage-private") + '">Hide usage</button><button class="button" data-action="flow-list" aria-pressed="' + root.classList.contains("usage-list-hidden") + '">Hide list</button></div><div class="usage-grid"><section class="card"><h2>Usage time today (UTC)</h2>' + usageChart(data.hours)
+  root.innerHTML = '<p id="flow-sync-status" class="small-text muted" role="status"></p><div class="usage-grid"><section class="card"><h2>Usage time today (UTC)</h2>' + usageChart(data.hours)
     + '</section><section class="usage-metrics" aria-label="Last 7 days">' + [["Total usage", duration(total)], ["Total sessions", data.visits],
       ["Daily average", duration(total / 7)], ["Devices", data.devices]].map(([label,value]) =>
       '<div class="card"><div class="tally">' + label + '</div><div class="stat-value">' + value + '</div><small class="muted">Last 7 days</small></div>').join("")

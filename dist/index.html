@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="plain">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -12,16 +12,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+  <script src="./theme-init.js"></script>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <aside class="sidebar" aria-label="Sidebar">
+  <aside class="sidebar" id="sidebar" aria-label="Sidebar">
     <a class="brand" href="#today" aria-label="Mob home"><img src="./icon.svg" alt=""><span><strong>Mob<span class="period">.</span></strong><small>Your focus, together</small></span></a>
     <div class="sidebar-body">
       <nav class="primary-nav" id="nav" aria-label="Workspace"></nav>
     </div>
     <div class="sidebar-bottom">
-      <button class="nav-button" data-action="settings" aria-label="Settings" title="Settings"><i data-icon="settings"></i><span>Settings</span></button>
+      <a class="nav-button" id="settings-link" href="#settings" aria-label="Settings" title="Settings"><i data-icon="settings"></i><span>Settings</span></a>
       <button class="nav-button" data-action="sidebar" id="sidebar-toggle" aria-label="Collapse sidebar" title="Collapse sidebar" aria-controls="nav" aria-expanded="true"><i data-icon="sidebar"></i><span>Collapse sidebar</span></button>
       <button class="profile" data-action="account" id="profile"></button>
     </div>
@@ -31,12 +32,14 @@
       <a class="brand mobile-brand" href="#today" aria-label="Mob home"><img src="./icon.svg" alt=""><strong>Mob<span class="period">.</span></strong></a>
       <div class="breadcrumb"><strong id="crumb">Today</strong></div>
       <div class="top-actions">
+        <button id="mobile-menu" class="icon-button" data-action="mobile-menu" aria-label="Open sidebar" aria-controls="sidebar" aria-expanded="false"><i data-icon="sidebar"></i></button>
         <button class="icon-button" aria-label="Notifications" title="Notifications" data-action="notifications"><i data-icon="bell"></i></button>
         <button class="button primary new-button" data-action="task-new"><i data-icon="plus"></i> New task</button>
         <button class="mobile-account icon-button" data-action="account" aria-label="Account or login"><i data-icon="user"></i></button>
       </div>
     </header>
     <div class="content" id="view"></div>
+    <footer class="app-footer"><a href="./privacy.html">Privacy</a><a href="./terms.html">Terms</a><a href="./metiq-credits.html">Sound credits</a></footer>
   </main>
   <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile workspace"></nav>
   <dialog id="dialog"></dialog>

@@ -16,7 +16,7 @@ const project = "https://xrvqyraafmwpfenysmfo.supabase.co";
 const assets = existsSync(join(__dirname, "web")) ? join(__dirname, "web") : join(__dirname, "../../dist");
 const contentTypes = {
   ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml",
-  ".jpg": "image/jpeg", ".png": "image/png", ".mp4": "video/mp4", ".webmanifest": "application/manifest+json"
+  ".jpg": "image/jpeg", ".png": "image/png", ".mp4": "video/mp4", ".ogg": "audio/ogg", ".txt": "text/plain; charset=utf-8", ".webmanifest": "application/manifest+json"
 };
 let usageShield;
 let window, server, tracker, tray, waiting = false, locked = false, quitting = false, trackerRestarts=0;
