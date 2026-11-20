@@ -2556,6 +2556,8 @@ document.addEventListener("change", event => {
 
   if (event.target.id === "focus-task") setTimer({ ...timer, taskId: event.target.value });
 
+  if (event.target.id === "flow-date-range") flow.setRange(event.target.value);
+
   if (event.target.id === "flow-list-filter") {
 
     save("flow-list-filter",event.target.value);

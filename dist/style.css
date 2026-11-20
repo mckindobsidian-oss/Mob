@@ -629,3 +629,5 @@ body[data-view="flow"] .top-actions [data-action="notifications"] { display: non
   .mobile-nav { grid-template-columns: repeat(5,minmax(0,1fr)); }
   .app-footer { padding-bottom: 80px; }
 }
+
+.flow-date-range { width: min(100%, 220px); margin-bottom: 10px; }

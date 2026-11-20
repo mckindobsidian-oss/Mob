@@ -65,4 +65,4 @@ Updated 2026-11-19. This is the current release audit and supersedes earlier ent
 - Cross-device totals/policies may lag roughly five minutes; browser rule reevaluation is approximately 30 seconds and can be delayed by the browser. Concurrent offline clients can exceed a shared daily budget before reconciliation.
 - Daily limits use UTC; schedules use each device's timezone. Session limits are per tracker and reset after roughly one minute away.
 - Windows blocking is a reversible focus shield, not tamper-resistant OS access control. Mob remains available to edit limits.
-- The 60-second idle cutoff may stop counting passive reading/playback. Usage history is retained for seven days. Clear conservatively discards ambiguous older queued hours.
+- The 60-second idle cutoff may stop counting passive reading/playback. Usage reports cover up to 30 UTC calendar days. Local sync queues still hold about one week of pending activity. Clear conservatively discards ambiguous older queued hours.

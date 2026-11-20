@@ -286,7 +286,7 @@ export async function connectSupabase(config) {
     leaderboard: () => result(client.rpc("mob_leaderboard_photos")),
     androidSocial: (device, minutes) => result(client.rpc("mob_android_social",{device,total_minutes:Math.min(100000000,Math.floor(minutes))})),
     flowSync: (device, generation, batch) => result(client.rpc("mob_flow_sync", { device, generation, batch })),
-    flowSnapshot: device => result(client.rpc("mob_flow_snapshot_device", { device })),
+    flowSnapshot: (device, usage_range) => result(client.rpc("mob_flow_report", { device, usage_range })),
     flowManage: (action, item = null) => result(client.rpc("mob_flow_manage", { action, item })),
     deleteAccount: uid => result(client.rpc("mob_delete_account", {expected_user:uid})),
     async youtubeSeconds(day) {
