@@ -91,7 +91,7 @@ export function createFlow({ read, save, device, source, enabled, active, native
   function ruleState() {
     const catalog=new Map(),daily={};
     const key=(kind,label)=>(kind==='website'?'website':'app')+':'+label.toLowerCase();
-    for(const row of data.catalog||data.items||[]){if(row[0]==='mobile'||row[0]==='web')continue;catalog.set(key(row[0],row[1]),{kind:row[0]==='website'?'website':'app',label:row[1]});}
+    for(const row of [...(data.catalog || []), ...(data.items || [])]){if(row[0]==='mobile'||row[0]==='web')continue;catalog.set(key(row[0],row[1]),{kind:row[0]==='website'?'website':'app',label:row[1]});}
     for(const [kind,label,seconds] of (data.day===new Date().toISOString().slice(0,10)?data.totals||[]:[]))daily[key(kind,label)]=(daily[key(kind,label)]||0)+seconds;
     const baseline=new Map((data.own||[]).map(([stamp,kind,label,seconds])=>[stamp+'/'+kind+':'+label,seconds]));
     for(const row of pendingRows()){
@@ -377,8 +377,9 @@ function renderFlow(root, data, signedIn, range, waiting) {
   const action=focused?.dataset?.action;
   const item=focused?.dataset?.id;
   const options = Object.entries(ranges).map(([key, value]) =>
-    '<option value="' + key + '"' + (key === range.key ? ' selected' : '') + '>' + value.label + '</option>').join("");
-  root.innerHTML = '<label class="field flow-date-range">Date range (UTC)<select id="flow-date-range">' + options + '</select></label>'
+    '<button type="button" class="button range-chip' + (key === range.key ? ' active' : '') + '" data-action="flow-range" data-id="' + key + '" aria-pressed="' + (key === range.key) + '">' + value.label + '</button>').join("");
+  root.classList.toggle('flow-loading', waiting && !total && navigator.onLine);
+  root.innerHTML = '<div class="flow-date-range" role="group" aria-label="Date range in UTC">' + options + '</div>'
     + '<p id="flow-sync-status" class="small-text muted" role="status"></p><div class="usage-grid"><section class="card"><h2>Usage time · ' + range.label + '</h2>' + usageChart(data.hours, range)
     + '</section><section class="usage-metrics" aria-label="' + range.label + '">' + [["Total usage", duration(total)], ["Total sessions", data.visits],
       ["Daily average", duration(total / range.days)], ["Devices", data.devices]].map(([label,value]) =>

@@ -306,6 +306,7 @@ export async function connectSupabase(config) {
     },
     signup: (email, password) => result(client.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } })),
     reset: email => result(client.auth.resetPasswordForEmail(email, { redirectTo })),
+    hasPassword: () => result(client.rpc("mob_has_password")),
     changePassword: password => result(client.auth.updateUser({ password })),
     logout: () => result(client.auth.signOut({ scope: "local" })),
     watchSettings: (uid, handler, onError) => watch(uid, "profile", handler, onError),

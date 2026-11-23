@@ -133,10 +133,20 @@ export function normalizeUsername(value) {
 export function achievements(tasks, sessions, today) {
   const minutes = sessions.reduce((total, session) => total + session.minutes, 0);
   const { best } = streakFor(activityFor([], sessions), today);
+  const completed = tasks.filter(task => task.completedDay).length;
   return [
     { name: "First move", icon: "play", current: sessions.length, goal: 1, unit: "sessions" },
     { name: "Power hour", icon: "timer", current: minutes, goal: 60, unit: "min" },
     { name: "On a roll", icon: "flame", current: best, goal: 3, unit: "days in a row" },
-    { name: "Clean sweep", icon: "check", current: tasks.filter(task => task.completedDay).length, goal: 10, unit: "tasks" },
+    { name: "Clean sweep", icon: "check", current: completed, goal: 10, unit: "tasks" },
+    { name: "Checked off", icon: "check", current: completed, goal: 1, unit: "tasks" },
+    { name: "Task momentum", icon: "check", current: completed, goal: 25, unit: "tasks" },
+    { name: "Century list", icon: "check", current: completed, goal: 100, unit: "tasks" },
+    { name: "Finding your pace", icon: "play", current: sessions.length, goal: 5, unit: "sessions" },
+    { name: "Focus regular", icon: "play", current: sessions.length, goal: 15, unit: "sessions" },
+    { name: "Deep work", icon: "timer", current: minutes, goal: 300, unit: "min" },
+    { name: "Ten hours in", icon: "timer", current: minutes, goal: 600, unit: "min" },
+    { name: "A full week", icon: "flame", current: best, goal: 7, unit: "days in a row" },
+    { name: "Steady practice", icon: "flame", current: best, goal: 14, unit: "days in a row" },
   ];
 }

@@ -30,7 +30,7 @@ Windows and Android bundle the Mob interface and connect to Supabase directly. T
 - **Browser extension** — zip the contents of `clients/extension/` with `manifest.json` at the archive root. Extract it, open Chrome or Edge Extensions, enable Developer mode, and select **Load unpacked**. The toolbar popup opens Mob Flow.
 - **Android** syncs tasks and an optional aggregate Social focus score every five minutes while active. Pomodoro and YouTube Shorts blocking are local. Enable accessibility only for Shorts blocking, and notifications only for reminders. Android Flow shows Coming soon; there is no app usage access, background usage collection or mobile usage upload. Settings includes Shorts blocking and bottom navigation reordering.
 
-Focus video and poster are from [A Misty Lake in the Forest by K on Pexels](https://www.pexels.com/video/a-misty-lake-in-the-forest-4296652/) under the [Pexels License](https://www.pexels.com/license/).
+The Focus video is a slowed and softly graded edit of [A Misty Lake in the Forest by K on Pexels](https://www.pexels.com/video/a-misty-lake-in-the-forest-4296652/) under the [Pexels License](https://www.pexels.com/license/).
 
 ## Focus sounds and themed pickers
 
@@ -38,6 +38,6 @@ Focus includes seven locally generated sound presets, Play/Pause and volume. Bin
 
 ## Selective usage limits
 
-For fresh databases, apply `supabase/usage-rules.sql`, `supabase/flow-report.sql` and `supabase/android-social.sql` after the migrations listed above. This is already deployed to North through Mob. Flow's Add limit opens a searchable dropdown of visited apps and websites. Select one or more items and choose permanent, scheduled, daily, session or Pomodoro blocking. Windows uses a reversible foreground focus shield; websites require the linked extension. Daily totals include hidden items and reconcile across devices on the existing sync cadence. Daily budgets use UTC, schedules use device-local time, and session budgets are per tracker with a one-minute-away reset. Mob remains available to edit limits.
+For fresh databases, apply `supabase/usage-rules.sql`, `supabase/flow-report.sql` `supabase/android-social.sql`, `supabase/leaderboard-photos.sql` and `supabase/profile-leaderboard.sql` after the migrations listed above. This is already deployed to North through Mob. Flow's Add limit opens a searchable dropdown of visited apps and websites. Select one or more items and choose permanent, scheduled, daily, session or Pomodoro blocking. Windows uses a reversible foreground focus shield; websites require the linked extension. Daily totals include hidden items and reconcile across devices on the existing sync cadence. Daily budgets use UTC, schedules use device-local time, and session budgets are per tracker with a one-minute-away reset. Mob remains available to edit limits.
 
 Current test builds are Android 1.5.1, Windows installer 1.5.1 and extension 1.6.3. Get them from the [Mob launch page](https://moblabs.vercel.app/) or [GitHub Releases](https://github.com/mckindobsidian-oss/Mob-Platform/releases/tag/v1.5.1). Run `clients/windows/installer.ps1` to package the single-file Windows installer. All platforms include a new-user introduction; theater includes a compact Spotify player. See DEPLOYMENT-AUDIT.md for verification coverage and release limitations.

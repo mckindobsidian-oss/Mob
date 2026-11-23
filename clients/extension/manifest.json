@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mob",
-  "version": "1.6.4",
+  "version": "1.6.5",
   "description": "Track aggregate browser activity and enforce Mob focus limits.",
   "minimum_chrome_version": "120",
   "permissions": [

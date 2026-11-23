@@ -631,3 +631,40 @@ body[data-view="flow"] .top-actions [data-action="notifications"] { display: non
 }
 
 .flow-date-range { width: min(100%, 220px); margin-bottom: 10px; }
+
+.flow-date-range { width: auto; display: flex; gap: clamp(3px, 1vw, 8px); }
+.flow-date-range .range-chip { min-width: 0; padding: 7px clamp(7px, 2vw, 15px); border-radius: 999px; white-space: nowrap; }
+.range-chip.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.completed-tasks { padding: 8px 12px; margin-top: 10px; background: var(--well); border-radius: 10px; color: var(--muted); }
+.completed-tasks .task-row { opacity: .75; }
+.completed-tasks summary { cursor: pointer; font-size: 13px; }
+button#profile { justify-self: start; width: 46px; min-width: 46px; justify-content: center; padding: 4px; }
+.profile-page { max-width: 650px; }
+.profile-page .account-actions { margin-top: 24px; }
+.music-card #spotify-player iframe { width: 100%; border: 0; border-radius: 12px; }
+.music-card #spotify-player { animation: spotify-open .18s ease-out both; }
+@keyframes spotify-open { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+main { min-height: 100dvh; display: flex; flex-direction: column; }
+main .app-footer { margin-top: auto; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.workspace-skeleton { display: grid; gap: 18px; padding-top: 8px; }
+.sk-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.skeleton, .flow-loading .usage-chart, .flow-loading .usage-metrics .stat-value {
+  background: linear-gradient(110deg, var(--well) 30%, var(--selected) 48%, var(--well) 65%);
+  background-size: 220% 100%; animation: mob-shimmer 1.45s linear infinite;
+  border-radius: 12px;
+}
+.flow-loading .usage-chart *, .flow-loading .stat-value { visibility: visible; color: transparent; }
+.flow-loading .usage-chart > * { opacity: 0; }
+.sk-heading { width: min(42%, 260px); height: 42px; }
+.sk-banner { height: 105px; }
+.sk-panel { height: 210px; }
+html[data-loading-view="focus"] .sk-banner { height: 320px; }
+html[data-loading-view="calendar"] .sk-banner { height: 280px; }
+html[data-loading-view="tasks"] .sk-banner, html[data-loading-view="social"] .sk-banner { height: 54px; }
+html[data-loading-view="tasks"] .sk-grid, html[data-loading-view="social"] .sk-grid,
+html[data-loading-view="settings"] .sk-grid, html[data-loading-view="profile"] .sk-grid { grid-template-columns: 1fr; }
+html[data-loading-view="tasks"] .sk-panel, html[data-loading-view="social"] .sk-panel { height: 68px; }
+@keyframes mob-shimmer { to { background-position: -220% 0; } }
+@media (max-width: 600px) { .sk-grid { grid-template-columns: 1fr; } .sk-panel { height: 150px; } }
+@media (prefers-reduced-motion: reduce) { .skeleton, .flow-loading .usage-chart, .flow-loading .stat-value, .music-card #spotify-player { animation: none; } }

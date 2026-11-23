@@ -39,12 +39,19 @@
         <button class="mobile-account icon-button" data-action="account" aria-label="Account or login"><i data-icon="user"></i></button>
       </div>
     </header>
-    <div class="content" id="view"></div>
-    <footer class="app-footer"><a href="./privacy.html">Privacy</a><a href="./terms.html">Terms</a><a href="./metiq-credits.html">Sound credits</a></footer>
+    <div class="content" id="view" aria-busy="true">
+      <div class="workspace-skeleton" aria-hidden="true">
+        <div class="skeleton sk-heading"></div><div class="skeleton sk-banner"></div>
+        <div class="sk-grid"><div class="skeleton sk-panel"></div><div class="skeleton sk-panel"></div></div>
+      </div>
+      <span class="sr-only" role="status">Loading Mob</span>
+    </div>
+    <footer class="app-footer"><a href="./privacy.html">Privacy</a><a href="./terms.html">Terms</a><a href="./metiq-credits.html">Credits</a></footer>
   </main>
   <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile workspace"></nav>
   <dialog id="dialog"></dialog>
   <div id="toast" class="toast" role="status"></div>
+  <script src="./loading.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

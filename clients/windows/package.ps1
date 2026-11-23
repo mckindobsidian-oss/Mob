@@ -16,7 +16,7 @@ Rename-Item -LiteralPath (Join-Path $output 'electron.exe') -NewName 'Mob.exe'
 $resources = Join-Path $output 'resources/app'
 New-Item -ItemType Directory -Path $resources | Out-Null
 Copy-Item -LiteralPath @(
-    (Join-Path $PSScriptRoot 'usage-shield.cjs'), (Join-Path $PSScriptRoot 'main.cjs'), (Join-Path $PSScriptRoot 'preload.cjs'), (Join-Path $PSScriptRoot 'package.json')
+    (Join-Path $PSScriptRoot 'mob.ico'), (Join-Path $PSScriptRoot 'usage-shield.cjs'), (Join-Path $PSScriptRoot 'main.cjs'), (Join-Path $PSScriptRoot 'preload.cjs'), (Join-Path $PSScriptRoot 'package.json')
 ) -Destination $resources
 Copy-Item -LiteralPath (Join-Path $project 'dist') -Destination (Join-Path $resources 'web') -Recurse
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
