@@ -1,9 +1,9 @@
-const CACHE = "mob-shell-v19";
+const CACHE = "mob-shell-v20";
 const FILES = [
   "./", "./index.html", "./style.css", "./app.js", "./core.js",
   "./usage-rules.js", "./flow-controls.js", "./focus-audio.js", "./themed-controls.js", "./mob-platform.js", "./flow.js", "./settings-queue.js", "./supabase.js", "./supabase-config.js", "./focus-lake.jpg", "./focus-coast.jpg",
   "./theme-init.js", "./loading.js", "./privacy.html", "./terms.html", "./metiq-credits.html",
-  "./icon.svg", "./icon-192.png", "./manifest.webmanifest"
+  "./icon.svg", "./mob-favicon.png", "./icon-192.png", "./manifest.webmanifest"
 ];
 
 self.addEventListener("install", event => {

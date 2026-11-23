@@ -705,3 +705,10 @@ button#profile .avatar img, .profile-identity .avatar img { width: 100%;height:1
 .mob-context-menu { position: fixed; z-index: 100; min-width: 172px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 28px #0006; }
 .mob-context-menu button { display: block; width: 100%; padding: 9px 11px; text-align: left; border-radius: 7px; }
 .mob-context-menu button:is(:hover,:focus-visible) { background: var(--selected); }
+
+::selection { background: var(--accent); color: var(--accent-ink, #132017); }
+.sound-playback { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 115px), 1fr)); align-items: center; gap: .65rem; }
+.sound-playback input[type="range"] { width: 100%; accent-color: var(--accent); }
+.mob-context-menu { min-width: 200px; max-width: calc(100vw - 8px); padding: 5px; border-color: var(--line); box-shadow: 0 15px 40px #0007; }
+.mob-context-menu button { font-weight: 600; padding: .65rem .8rem; }
+.mob-context-menu button:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }

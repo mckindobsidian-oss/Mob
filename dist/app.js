@@ -603,7 +603,8 @@ let clipOverride;
 let spotifyOpen = false;
 let focusSound;
 let soundBusy=false;
-function soundSettings(){const value=settings.focusAudio;return {preset:soundPresets.some(([id])=>id===value?.preset)?value.preset:"brown",volume:Number.isFinite(value?.volume)?Math.max(0,Math.min(0.6,value.volume)):0.2};}
+let soundMinutes = read("sound-minutes", 25) === 60 ? 60 : 25;
+function soundSettings(){const value=settings.focusAudio;return {preset:soundPresets.some(([id])=>id===value?.preset)?value.preset:"brown",volume:Number.isFinite(value?.volume)?Math.max(0,Math.min(1,value.volume)):0.5};}
 function soundCard() {
   const { preset } = soundSettings();
   return `<section class="card focus-sounds">
@@ -611,16 +612,17 @@ function soundCard() {
     <p class="small-text muted">Use stereo headphones for binaural beats.</p>
     <div class="sound-preset-grid">${soundPresets.map(([key, label]) =>
       `<button type="button" class="sound-preset ${preset === key ? "active" : ""}" data-action="sound-preset" data-id="${key}" aria-pressed="${preset === key}"><strong>${label}</strong></button>`).join("")}</div>
-    <button class="button primary" data-action="sound-toggle" ${soundBusy ? "disabled" : ""}>${icon(focusSound?.playing ? "pause" : "play")} ${focusSound?.playing ? "Pause sound" : "Play sound"}</button>
+    <div class="sound-playback"><label class="field">Duration<select id="sound-duration" ${focusSound?.playing || soundBusy ? "disabled" : ""}><option value="25" ${soundMinutes === 25 ? "selected" : ""}>25 minutes</option><option value="60" ${soundMinutes === 60 ? "selected" : ""}>1 hour</option></select></label><label class="field">Volume<input id="sound-volume" type="range" min="0" max="100" value="${Math.round(soundSettings().volume*100)}"></label></div>
+    <button class="button primary" data-action="sound-toggle" ${soundBusy ? "disabled" : ""}>${icon(focusSound?.playing ? "pause" : "play")} ${focusSound?.playing ? "Stop sound" : "Play sound"}</button>
   </section>`;
 }
 
 async function toggleFocusSound(){
  if(soundBusy)return;
- focusSound ||= createFocusAudio();
+ focusSound ||= createFocusAudio(() => render());
  if(focusSound.playing){focusSound.stop();render();return;}
  soundBusy=true;render();
- try {const value=soundSettings();await focusSound.play(value.preset,value.volume);}catch(error){toast(error.message||"Sound could not start. Tap Play to retry.");}
+ try {const value=soundSettings();await focusSound.play(value.preset,value.volume,soundMinutes);}catch(error){toast(error.message||"Sound could not start. Tap Play to retry.");}
  finally{soundBusy=false;render();}
 }
 
@@ -1291,7 +1293,7 @@ function drawClock() {
 
   $(".timer-ring .progress")?.setAttribute("stroke-dasharray", `${100 * remaining / timer.duration} 100`);
 
-  document.title = timer.endsAt ? `${time} · ${timerLabels[timer.mode]} · Mob` : "Mob · North Designer";
+  document.title = timer.endsAt ? `${time} · ${timerLabels[timer.mode]} · Mob` : `Mob · ${views[route()][0]}`;
 
 }
 
@@ -1878,7 +1880,7 @@ function welcome(step=0){
   modal("welcome",`${step+1} of 3 · ${pages[step][0]}`,`<div class="dialog-body welcome-journey"><img class="onboard-logo" src="./icon.svg" alt="Mob"><p>${pages[step][1]}</p>${step===2&&!native?extensionDownload():""}<p class="small-text muted">You can revisit setup from Account at any time. Permissions are optional and requested when you enable a feature.</p><div class="form-actions"><button class="button" data-action="setup-finish">Skip for now</button>${step?`<button class="button" data-action="welcome" data-id="${step-1}">Back</button>`:""}<button class="button primary" data-action="${step===2?"onboard":"welcome"}" data-id="${step===2?1:step+1}">${step===2?"Set up features":"Next"}</button></div></div>`);
 }
 
-const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.5/Mob-Browser-Extension-v1.6.7.zip";
+const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.6/Mob-Browser-Extension-v1.6.8.zip";
 function extensionDownload() {
   return `<a class="button primary" href="${extensionURL}">Download Mob extension</a><p class="small-text muted">Extract the ZIP and load it from Chrome or Edge’s Extensions page using Developer mode. Reload Flow when it’s installed.</p>`;
 }
@@ -2359,7 +2361,7 @@ const actions = {
     if(soundBusy || !soundPresets.some(([id])=>id===preset))return;
     const wasPlaying=focusSound?.playing;
     saveSettings({focusAudio:{...soundSettings(),preset}});
-    if(wasPlaying){soundBusy=true;try{await focusSound.play(preset,soundSettings().volume);}catch(error){toast(error.message);}finally{soundBusy=false;}}
+    if(wasPlaying){soundBusy=true;try{await focusSound.play(preset,soundSettings().volume,soundMinutes);}catch(error){toast(error.message);}finally{soundBusy=false;}}
     render();
   },
 
@@ -3273,8 +3275,8 @@ document.addEventListener("contextmenu", event => {
   closeContextMenu();
   const row = event.target.closest(".task-row");
   const task = row?.querySelector('[data-action="task-edit"]')?.dataset.id;
-  const kind = task ? [["Edit task", () => actions["task-edit"](task)], ["Toggle completion", () => actions["task-check"](task)]] :
-    [["New task", () => actions["task-new"]()], ["Go to Focus", () => { location.hash = "focus"; }], ["Open Flow", () => { location.hash = "flow"; }]];
+  const kind = task ? [["Edit task", () => actions["task-edit"](task)], [row.classList.contains("completed") ? "Reopen task" : "Complete task", () => actions["task-check"](task)]] :
+    [["New task", () => actions["task-new"]()], ["Go to Focus", () => { location.hash = "focus"; }], ["Open Flow", () => { location.hash = "flow"; }], ["Settings", () => { location.hash = "settings"; }]];
   contextMenu = document.createElement("div");
   contextMenu.className = "mob-context-menu";
   contextMenu.setAttribute("role", "menu");
@@ -3302,3 +3304,14 @@ document.addEventListener("keydown", event => {
 });
 window.addEventListener("hashchange", closeContextMenu);
 window.addEventListener("resize", closeContextMenu);
+
+document.addEventListener("input", event => {
+  if (event.target.id === "sound-volume") focusSound?.setVolume(Number(event.target.value) / 100);
+});
+document.addEventListener("change", event => {
+  if (event.target.id === "sound-duration") {
+    soundMinutes = Number(event.target.value) === 60 ? 60 : 25;
+    save("sound-minutes", soundMinutes);
+  }
+  if (event.target.id === "sound-volume") saveSettings({ focusAudio: { ...soundSettings(), volume: Number(event.target.value) / 100 } });
+});
