@@ -457,7 +457,9 @@ function navigationOrder() {
   const saved=read("navigation-order",[]);
   return [...new Set([...saved, ...Object.keys(views)])].filter(key => views[key] && !["calendar", "settings", "profile"].includes(key));
 }
+let customAvatar = "";
 function avatarMarkup() {
+  if (customAvatar) return `<img src="${escape(customAvatar)}" alt="">`;
   const photo=account?.photoURL||"";
   return /^https:\/\/(?:[^/]+\.)?googleusercontent\.com\//i.test(photo) ? `<img src="${escape(photo)}" alt="Your Google profile photo" referrerpolicy="no-referrer">` : account&&handle ? escape(handle[0].toUpperCase()) : icon("user");
 }
@@ -606,6 +608,7 @@ function soundCard() {
   const { preset } = soundSettings();
   return `<section class="card focus-sounds">
     ${sectionTitle("music", "Focus sounds", "")}
+    <p class="small-text muted">Use stereo headphones for binaural beats.</p>
     <div class="sound-preset-grid">${soundPresets.map(([key, label]) =>
       `<button type="button" class="sound-preset ${preset === key ? "active" : ""}" data-action="sound-preset" data-id="${key}" aria-pressed="${preset === key}"><strong>${label}</strong></button>`).join("")}</div>
     <button class="button primary" data-action="sound-toggle" ${soundBusy ? "disabled" : ""}>${icon(focusSound?.playing ? "pause" : "play")} ${focusSound?.playing ? "Pause sound" : "Play sound"}</button>
@@ -1570,6 +1573,7 @@ function checkReminders(now) {
 
 
 
+let lastUsageReminderMinute = -1;
 function tick() {
 
   const now = Date.now();
@@ -1589,6 +1593,18 @@ function tick() {
   }
 
   flow.tick();
+  if (window.MobDesktop?.usageReminder && trackingAllowed && Math.floor(now / 60000) !== lastUsageReminderMinute) {
+    lastUsageReminderMinute = Math.floor(now / 60000);
+    const reminder = read("usage-reminder", null);
+    const local = new Date(now);
+    const time = [local.getHours(), local.getMinutes()].map(value => String(value).padStart(2, "0")).join(":");
+    if (reminder?.enabled && time === reminder.at && read("usage-reminder-day", "") !== today) {
+      save("usage-reminder-day", today);
+      local.setHours(0, 0, 0, 0);
+      const seconds = flow.desktopTime(local.getTime(), now);
+      void window.MobDesktop.usageReminder(timeUsed(seconds) || "0s").catch(() => {});
+    }
+  }
   checkAchievements();
   if(window.MobDesktop?.setUsagePolicy&&Date.now()-lastUsagePolicy>=2000) {
     lastUsagePolicy=Date.now();
@@ -1691,7 +1707,7 @@ function openSettings(tab = "appearance") {
 }
 function settingsView(tab = settingsTab) {
 
-  const tabs = { appearance: "Appearance", timer: "Timer", ...(window.MobAndroid?{shorts:"Shorts",navigation:"Navigation"}:{}) };
+  const tabs = { appearance: "Appearance", timer: "Timer", ...(window.MobDesktop?.usageReminder ? { usage: "Usage reminder" } : {}), ...(window.MobAndroid?{shorts:"Shorts",navigation:"Navigation"}:{}) };
   if(!tabs[tab])tab="appearance";
 
   const nav = `<div class="segments settings-tabs" aria-label="Settings sections">${Object.entries(tabs).map(([key, label]) =>
@@ -1740,7 +1756,9 @@ function settingsView(tab = settingsTab) {
 
   const shorts = `<div class="dialog-body"><h3>YouTube Shorts</h3><p>Keep regular YouTube videos and dismiss the Shorts player locally.</p><label class="switch"><input id="shorts-toggle" type="checkbox" ${settings.blockShorts?"checked":""}> Block YouTube Shorts</label><p class="permission-status" role="status">${settings.blockShorts?(nativeStatus.blocking?"Blocking is enabled.":"Turn on Mob in Android Accessibility settings to finish setup."):"Blocking is off."}</p><button class="button" data-action="native-blocking">Open Accessibility settings</button><small class="muted">Mob reads only the active YouTube screen to recognize Shorts. No app usage is collected or uploaded.</small></div>`;
   const navigation = `<div class="dialog-body"><p>Arrange the bottom bar in the order that works for you. Changes stay on this device.</p><ol class="navigation-editor">${navigationOrder().map((key,i)=>`<li><span>${icon(views[key][1])} ${views[key][0]}</span><button class="icon-button small" data-action="nav-move" data-id="${key}:-1" aria-label="Move ${views[key][0]} earlier" ${i===0?"disabled":""}>${icon("chevron-left")}</button><button class="icon-button small" data-action="nav-move" data-id="${key}:1" aria-label="Move ${views[key][0]} later" ${i===navigationOrder().length-1?"disabled":""}>${icon("chevron-right")}</button></li>`).join("")}</ol><button class="button" data-action="nav-reset">Reset order</button></div>`;
-  return `${heading("Settings")}<section class="card settings-page">${nav}${({ appearance, timer: timerForm, shorts, navigation })[tab]}</section>`;
+  const reminder = read("usage-reminder", { at: "20:00", enabled: false });
+  const usage = `<form id="usage-reminder-form" class="dialog-body"><h3>Daily desktop usage</h3><p>See how much time you’ve spent in desktop apps today. Mob must be running with foreground tracking enabled.</p><label class="switch"><input name="enabled" type="checkbox" ${reminder.enabled ? "checked" : ""}> Show a daily Windows notification</label><label class="field">Local time<input name="at" type="time" required value="${escape(reminder.at)}"></label><button class="button primary" type="submit">Save reminder</button></form>`;
+  return `${heading("Settings")}<section class="card settings-page">${nav}${({ appearance, timer: timerForm, shorts, navigation, usage })[tab]}</section>`;
 
 }
 
@@ -1800,8 +1818,8 @@ let passwordStatus = null;
 function profileView() {
   if (!account) return `${heading("Profile")}<p class="muted">Sign in to view your profile.</p>`;
   const passwordLabel = passwordStatus === false ? "Set a password" : passwordStatus === true ? "Change password" : "Manage password";
-  return `${heading("Profile")}<section class="card profile-page"><div class="inline"><span class="avatar">${avatarMarkup()}</span><div><h2>${escape(account.displayName || (handle ? "@" + handle : "Mob account"))}</h2><p class="muted">${escape(account.email || "")}</p>${handle ? `<small>@${escape(handle)}</small>` : ""}</div></div>
-    <div class="account-actions">${handleLoaded && !handle ? '<button class="button" data-action="onboard">Choose username</button>' : ""}<button class="button" data-action="account-password">${passwordLabel}</button><button class="button" data-action="signout">Log out</button><button class="button danger" data-action="delete-account">Delete account</button></div></section>`;
+  return `${heading("Profile")}<section class="card profile-page"><div class="profile-identity"><span class="avatar">${avatarMarkup()}</span><div><h2>${escape(account.displayName || (handle ? "@" + handle : "Mob account"))}</h2><p class="muted">${escape(account.email || "")}</p>${handle ? `<small>@${escape(handle)}</small>` : ""}</div></div>
+    <div class="account-actions"><button class="button" data-action="edit-avatar">Edit photo</button>${handleLoaded ? `<button class="button" data-action="edit-handle">${handle ? "Change username" : "Choose username"}</button>` : ""}<button class="button" data-action="account-password">${passwordLabel}</button><button class="button" data-action="signout">Log out</button><button class="button danger" data-action="delete-account">Delete account</button></div></section>`;
 }
 
 function accountDialog(mode = "login") {
@@ -1860,7 +1878,7 @@ function welcome(step=0){
   modal("welcome",`${step+1} of 3 · ${pages[step][0]}`,`<div class="dialog-body welcome-journey"><img class="onboard-logo" src="./icon.svg" alt="Mob"><p>${pages[step][1]}</p>${step===2&&!native?extensionDownload():""}<p class="small-text muted">You can revisit setup from Account at any time. Permissions are optional and requested when you enable a feature.</p><div class="form-actions"><button class="button" data-action="setup-finish">Skip for now</button>${step?`<button class="button" data-action="welcome" data-id="${step-1}">Back</button>`:""}<button class="button primary" data-action="${step===2?"onboard":"welcome"}" data-id="${step===2?1:step+1}">${step===2?"Set up features":"Next"}</button></div></div>`);
 }
 
-const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.4/Mob-Browser-Extension-v1.6.6.zip";
+const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.5/Mob-Browser-Extension-v1.6.7.zip";
 function extensionDownload() {
   return `<a class="button primary" href="${extensionURL}">Download Mob extension</a><p class="small-text muted">Extract the ZIP and load it from Chrome or Edge’s Extensions page using Developer mode. Reload Flow when it’s installed.</p>`;
 }
@@ -1938,6 +1956,20 @@ function onboard(step = 1) {
 }
 
 
+
+async function squareAvatar(file) {
+  if (!file || file.size > 12_000_000) throw new Error("Choose an image under 12 MB.");
+  const image = await createImageBitmap(file);
+  try {
+    const size = Math.min(image.width, image.height);
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 144;
+    canvas.getContext("2d").drawImage(image, (image.width-size)/2, (image.height-size)/2, size, size, 0, 0, 144, 144);
+    const encoded = canvas.toDataURL("image/jpeg", .78);
+    if (encoded.length > 32768) throw new Error("Choose a smaller image.");
+    return encoded;
+  } finally { image.close(); }
+}
 
 async function backgroundPhoto(file) {
 
@@ -2047,6 +2079,11 @@ function watchAccount(user, event) {
     save("device-preferences", { ...previous, ...devicePreferences() });
   }
   account = user;
+  customAvatar = "";
+  if (user && api?.profilePhoto) void api.profilePhoto(user.uid).then(photo => {
+    if (account?.uid !== user.uid || !/^data:image\/jpeg;base64,[a-z0-9+/=]{1,32740}$/i.test(photo||"")) return;
+    if (!customAvatar) { customAvatar = photo; render(); }
+  }).catch(() => {});
   passwordStatus = null;
   if (user && api?.hasPassword) void api.hasPassword().then(value => {
     if (account?.uid !== user.uid) return;
@@ -2306,6 +2343,15 @@ function toggleMobileMenu(open = !document.body.classList.contains("mobile-menu-
 }
 
 const actions = {
+  "edit-avatar": () => modal("profile-photo", "Profile photo", `<form id="profile-photo-form" class="dialog-body"><label class="field">Choose a square photo<input name="photo" type="file" accept="image/*" required></label><div class="form-actions">${customAvatar ? '<button class="button" type="button" data-action="remove-avatar">Remove photo</button>' : ""}<button class="button primary" type="submit">Save photo</button></div><p class="error" role="alert"></p></form>`),
+  "remove-avatar": async () => {
+    const uid = account?.uid;
+    if (!uid) return;
+    try { await api.setProfilePhoto(uid, ""); if (account?.uid === uid) { customAvatar = ""; closeDialog(); render(); } }
+    catch { toast("Couldn’t remove the profile photo."); }
+  },
+  "edit-handle": () => modal("profile-username", handle ? "Change username" : "Choose username", `<form id="profile-username-form" class="dialog-body"><label class="field">Username<input name="username" required minlength="3" maxlength="24" value="${escape(handle)}" autocomplete="username"></label><p>Use 3–24 letters, numbers, or hyphens. Your new username also changes your leaderboard name.</p><button class="button primary" type="submit">Save username</button><p class="error" role="alert"></p></form>`),
+
   "flow-range": key => flow.setRange(key),
   "mobile-menu": () => toggleMobileMenu(),
   "sound-toggle": toggleFocusSound,
@@ -2732,6 +2778,33 @@ document.addEventListener("submit", async event => {
 
     } catch (error) { formError(form, error.message || "Check the project URL and publishable key."); }
 
+  } else if (["profile-photo-form", "profile-username-form"].includes(form.id) && account) {
+    const uid = account.uid;
+    const submit = form.querySelector('[type="submit"]');
+    submit.disabled = true;
+    try {
+      if (form.id === "profile-photo-form") {
+        const photo = await squareAvatar(values.get("photo"));
+        if (account?.uid !== uid) return;
+        await api.setProfilePhoto(uid, photo);
+        if (account?.uid !== uid) return;
+        customAvatar = photo;
+      } else {
+        const username = normalizeUsername(values.get("username"));
+        const saved = handle ? await api.renameHandle(uid, username) : await api.chooseHandle(username);
+        if (account?.uid !== uid) return;
+        handle = saved.username;
+        lastRanking = 0;
+      }
+      closeDialog(); render(); toast("Profile updated");
+    } catch (error) {
+      formError(form, error.code === "23505" ? "That username is already taken." : "Couldn’t save your profile.");
+    } finally { submit.disabled = false; }
+  } else if (form.id === "usage-reminder-form") {
+    const at = String(values.get("at") || "");
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(at)) return;
+    save("usage-reminder", { at, enabled: values.has("enabled") });
+    toast("Usage reminder saved");
   } else if (form.id === "settings-form") {
 
     const changes = Object.fromEntries(["focus", "short", "long", "interval", "focusGoal"].map(key => [key, Number(values.get(key))]));
@@ -3190,3 +3263,42 @@ void initAuth();
 
 
 installThemedControls();
+
+// Keep native text and form menus available for editing, spelling, and accessibility.
+let contextMenu;
+function closeContextMenu() { contextMenu?.remove(); contextMenu = null; }
+document.addEventListener("contextmenu", event => {
+  if (event.target.closest("input, textarea, select, [contenteditable], a, video, iframe, dialog") || getSelection()?.toString()) return;
+  event.preventDefault();
+  closeContextMenu();
+  const row = event.target.closest(".task-row");
+  const task = row?.querySelector('[data-action="task-edit"]')?.dataset.id;
+  const kind = task ? [["Edit task", () => actions["task-edit"](task)], ["Toggle completion", () => actions["task-check"](task)]] :
+    [["New task", () => actions["task-new"]()], ["Go to Focus", () => { location.hash = "focus"; }], ["Open Flow", () => { location.hash = "flow"; }]];
+  contextMenu = document.createElement("div");
+  contextMenu.className = "mob-context-menu";
+  contextMenu.setAttribute("role", "menu");
+  contextMenu.setAttribute("aria-label", "Mob shortcuts");
+  for (const [label, run] of kind) {
+    const button = document.createElement("button");
+    button.type = "button"; button.role = "menuitem"; button.textContent = label;
+    button.onclick = () => { closeContextMenu(); run(); };
+    contextMenu.append(button);
+  }
+  document.body.append(contextMenu);
+  contextMenu.style.left = Math.max(4, Math.min(event.clientX, innerWidth - contextMenu.offsetWidth - 4)) + "px";
+  contextMenu.style.top = Math.max(4, Math.min(event.clientY, innerHeight - contextMenu.offsetHeight - 4)) + "px";
+  contextMenu.firstElementChild.focus();
+});
+document.addEventListener("pointerdown", event => { if (!contextMenu?.contains(event.target)) closeContextMenu(); });
+document.addEventListener("keydown", event => {
+  if (!contextMenu) return;
+  if (event.key === "Escape" || event.key === "Tab") { closeContextMenu(); return; }
+  if (!["ArrowDown","ArrowUp","Home","End"].includes(event.key)) return;
+  event.preventDefault();
+  const buttons = [...contextMenu.children];
+  const index = buttons.indexOf(document.activeElement);
+  buttons[event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length]?.focus();
+});
+window.addEventListener("hashchange", closeContextMenu);
+window.addEventListener("resize", closeContextMenu);

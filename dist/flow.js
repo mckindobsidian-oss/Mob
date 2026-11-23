@@ -264,6 +264,14 @@ export function createFlow({ read, save, device, source, enabled, active, native
     },
     epoch: () => local.epoch,
     count, sync, draw,
+    desktopTime(start, end) {
+      return Object.values(local.rows).reduce((sum, row) => {
+        if (row.source !== "app" && row.source !== "desktop") return sum;
+        const hour = Date.parse(row.hour);
+        if (hour + hourMs <= start || hour > end) return sum;
+        return sum + row.seconds * (1 - Math.max(0, start - hour) / hourMs);
+      }, 0);
+    },
     setRange(key) {
       if (!Object.hasOwn(ranges, key) || key === selectedRange) return;
       selectedRange = key;
@@ -317,12 +325,13 @@ function usageChart(hours, range) {
   const bins = new Map();
   for (const [stamp, source, seconds] of hours) {
     const index = Math.floor((stamp * 1000 - range.start) / step);
-    if (index < 0 || index >= slots) continue;
+    if (!Number.isFinite(index) || index < 0 || index >= slots || !Number.isFinite(Number(seconds))) continue;
     if (!bins.has(source)) bins.set(source, Array(slots).fill(0));
-    bins.get(source)[index] += seconds;
+    bins.get(source)[index] += Number(seconds);
   }
   const max = Math.max(60, ...[...bins.values()].flat());
-  const x = index => 24 + index * 483 / (slots - 1);
+  const x = index => 58 + index * 449 / (slots - 1);
+  const y = value => 154 - value / max * 135;
   const ticks = range.days === 1 ? [0, 6, 12, 18] : range.days === 7 ? [0, 2, 4, 6] : [0, 7, 14, 21, 29];
   const formatter = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
   const axis = ticks.map((index, i) => {
@@ -331,11 +340,19 @@ function usageChart(hours, range) {
     return '<text x="' + x(index) + '" y="174" text-anchor="' + anchor + '">' + html(label) + '</text>';
   }).join("");
   const chart = [...bins].map(([source, values]) => {
-    const points = values.map((v,i) => x(i) + "," + (154 - (v / max) * 135));
-    return '<polyline points="' + points.join(" ") + '" fill="none" stroke="' + colors[source] + '" stroke-width="2.5" vector-effect="non-scaling-stroke"/>';
+    const points = values.map((v,i) => x(i) + "," + y(v));
+    const color = colors[source] || "var(--accent)";
+    const dots = values.map((value, index) => {
+      if (!value) return "";
+      const stamp = range.start + index * step;
+      const label = step === hourMs ? new Date(stamp).toLocaleTimeString(undefined, {hour:"numeric",minute:"2-digit",timeZone:"UTC"}) : formatter.format(stamp);
+      return `<circle cx="${x(index)}" cy="${y(value)}" r="4" fill="${color}"><title>${html(label + " · " + (names[source] || source) + " · " + duration(value))}</title></circle>`;
+    }).join("");
+    return '<polyline points="' + points.join(" ") + '" fill="none" stroke="' + color + '" stroke-width="2.5" vector-effect="non-scaling-stroke"/>' + dots;
   }).join("");
-  return '<svg class="usage-chart" viewBox="0 0 530 180" role="img" aria-label="Usage ' + (range.days === 1 ? 'by hour' : 'by day') + '"><path d="M24 19V154H507M24 87H507M24 19H507" fill="none" stroke="var(--line)"/>' + chart
-    + '<g fill="var(--muted)" font-size="12">' + axis + '</g></svg>'
+  return '<svg class="usage-chart" viewBox="0 0 530 180" role="img" aria-label="Usage ' + (range.days === 1 ? 'by hour' : 'by day') + '"><path d="M58 19V154H507M58 87H507M58 19H507" fill="none" stroke="var(--line)"/>' + chart
+    + '<g fill="var(--muted)" font-size="11">' + axis + [max, max / 2, 0].map(v => '<text x="51" y="' + (y(v)+4) + '" text-anchor="end">' + html(duration(v) || '0s') + '</text>').join('') + '</g></svg>'
+    + (bins.size ? '' : '<p class="muted small-text">No tracked usage in this range.</p>')
     + '<div class="usage-legend">' + [...bins].map(([source]) => '<span><i style="background:' + colors[source] + '"></i>' + names[source] + '</span>').join("") + '</div>';
 }
 

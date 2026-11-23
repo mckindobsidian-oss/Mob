@@ -13,6 +13,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.webkit.WebChromeClient;
+import android.webkit.ValueCallback;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
@@ -31,6 +32,8 @@ public final class MainActivity extends Activity {
     private static final String HOME = ORIGIN + "/assets/index.html";
     private static final String SUPABASE = "xrvqyraafmwpfenysmfo.supabase.co";
     private static final int NOTIFICATIONS = 91;
+    private static final int PICK_IMAGE = 92;
+    private ValueCallback<Uri[]> imageSelection;
     private WebView web;
     private boolean ready;
     private final android.os.Handler statusHandler=new android.os.Handler(android.os.Looper.getMainLooper());
@@ -62,7 +65,7 @@ public final class MainActivity extends Activity {
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(false);
-        web.getSettings().setAllowContentAccess(false);
+        web.getSettings().setAllowContentAccess(true);
         web.getSettings().setMediaPlaybackRequiresUserGesture(true);
         WebViewAssetLoader assets = new WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this)).build();
@@ -78,7 +81,21 @@ public final class MainActivity extends Activity {
                 return true;
             }
         });
-        web.setWebChromeClient(new WebChromeClient());
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (view.getUrl() == null || !view.getUrl().startsWith(HOME)) return false;
+                if (imageSelection != null) imageSelection.onReceiveValue(null);
+                imageSelection = callback;
+                Intent picker = new Intent(Intent.ACTION_GET_CONTENT);
+                picker.setType("image/*").addCategory(Intent.CATEGORY_OPENABLE);
+                try { startActivityForResult(picker, PICK_IMAGE); }
+                catch (ActivityNotFoundException error) {
+                    imageSelection = null;
+                    callback.onReceiveValue(null);
+                }
+                return true;
+            }
+        });
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             WebViewCompat.addWebMessageListener(web, "MobAndroid", Collections.singleton(ORIGIN),
                 (view, message, origin, mainFrame, reply) -> {
@@ -86,6 +103,15 @@ public final class MainActivity extends Activity {
                 });
         }
         load(getIntent());
+    }
+
+    @Override protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request != PICK_IMAGE || imageSelection == null) return;
+        ValueCallback<Uri[]> callback = imageSelection;
+        imageSelection = null;
+        Uri image = data == null ? null : data.getData();
+        callback.onReceiveValue(result == RESULT_OK && image != null && "content".equals(image.getScheme()) ? new Uri[] {image} : null);
     }
 
     @Override protected void onNewIntent(Intent intent) {

@@ -696,3 +696,12 @@ html[data-loading-view="tasks"] .sk-panel, html[data-loading-view="social"] .sk-
 @media (min-width: 921px) {
   #flow-dashboard > .usage-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+button#profile, .mobile-account { border-radius: 50%; }
+button#profile .avatar { width: 100%; height: 100%; aspect-ratio: 1; border-radius: 50%; overflow: hidden; }
+button#profile .avatar img, .profile-identity .avatar img { width: 100%;height:100%;object-fit:cover; }
+.profile-identity { display: flex; gap: 22px; align-items: center; }
+.profile-identity .avatar { width: clamp(74px, 14vw, 120px); height: auto; aspect-ratio: 1; border-radius: 50%; flex: none; overflow: hidden; }
+.mob-context-menu { position: fixed; z-index: 100; min-width: 172px; padding: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 28px #0006; }
+.mob-context-menu button { display: block; width: 100%; padding: 9px 11px; text-align: left; border-radius: 7px; }
+.mob-context-menu button:is(:hover,:focus-visible) { background: var(--selected); }

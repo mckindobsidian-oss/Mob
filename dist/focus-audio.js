@@ -4,7 +4,9 @@ export const soundPresets = [
   ["white", "White noise"],
   ["grey", "Grey noise"],
   ["crickets", "Night crickets"],
-  ["train", "Passing train"]
+  ["train", "Passing train"],
+  ["binaural-10", "Binaural · 10 Hz"],
+  ["binaural-16", "Binaural · 16 Hz"]
 ];
 
 export function createFocusAudio(AudioElement = globalThis.Audio) {
@@ -30,7 +32,7 @@ export function createFocusAudio(AudioElement = globalThis.Audio) {
     stop();
     const pending = request;
     preset = soundPresets.some(([key]) => key === next) ? next : "brown";
-    const element = new AudioElement(new URL(`./metiq-${preset}.ogg`, import.meta.url).href);
+    const element = new AudioElement(new URL(preset.startsWith("binaural-") ? `./mob-${preset}.ogg` : `./metiq-${preset}.ogg`, import.meta.url).href);
     element.loop = true;
     player = element;
     setVolume(volume);

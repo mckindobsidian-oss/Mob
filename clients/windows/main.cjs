@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, shell, powerMonitor, Tray, Menu } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Notification, shell, powerMonitor, Tray, Menu } = require("electron");
 const { createServer } = require("node:http");
 const { createReadStream, existsSync } = require("node:fs");
 const { join, extname } = require("node:path");
@@ -57,6 +57,11 @@ function run() {
   require(join(assets,"usage-rules.js"));
   usageShield=require("./usage-shield.cjs")(window,app,globalThis.MobUsageRules,origin);
   const helper = join(__dirname, "MobActivity.exe");
+  ipcMain.handle("mob-usage-reminder", (event, total) => {
+    if (event.sender !== window.webContents || !event.senderFrame || new URL(event.senderFrame.url).origin !== origin ||
+        typeof total !== "string" || !/^[0-9hms ]{1,36}$/.test(total)) return;
+    if (Notification.isSupported()) new Notification({ title: "Mob · Desktop usage", body: total + " in desktop apps today", icon: join(assets, "icon-192.png") }).show();
+  });
   ipcMain.handle("mob-tracking-status",()=>({running:Boolean(tracker && tracker.exitCode===null),
     startup:app.getLoginItemSettings().openAtLogin,locked,idle:powerMonitor.getSystemIdleTime()>=60}));
   function startTracker() {

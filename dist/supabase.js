@@ -280,6 +280,17 @@ export async function connectSupabase(config) {
       const row = await result(client.from("mob_handles").select("username").maybeSingle());
       return row?.username || "";
     },
+    async profilePhoto(uid) {
+      const row = await result(client.from("mob_profile_photos").select("photo").eq("user_id",uid).maybeSingle());
+      return row?.photo || "";
+    },
+    setProfilePhoto(uid, photo) {
+      const photos = client.from("mob_profile_photos");
+      return result(photo ? photos.upsert({user_id:uid,photo}) : photos.delete().eq("user_id",uid));
+    },
+    renameHandle(uid, username) {
+      return result(client.from("mob_handles").update({username}).eq("user_id",uid).select("username").single());
+    },
     chooseHandle(username) {
       return result(client.from("mob_handles").insert({ username }).select("username").single());
     },

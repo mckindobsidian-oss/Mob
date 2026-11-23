@@ -1,4 +1,4 @@
-const CACHE = "mob-shell-v18";
+const CACHE = "mob-shell-v19";
 const FILES = [
   "./", "./index.html", "./style.css", "./app.js", "./core.js",
   "./usage-rules.js", "./flow-controls.js", "./focus-audio.js", "./themed-controls.js", "./mob-platform.js", "./flow.js", "./settings-queue.js", "./supabase.js", "./supabase-config.js", "./focus-lake.jpg", "./focus-coast.jpg",
