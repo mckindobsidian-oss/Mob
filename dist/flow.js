@@ -379,12 +379,14 @@ function renderFlow(root, data, signedIn, range, waiting) {
   const options = Object.entries(ranges).map(([key, value]) =>
     '<button type="button" class="button range-chip' + (key === range.key ? ' active' : '') + '" data-action="flow-range" data-id="' + key + '" aria-pressed="' + (key === range.key) + '">' + value.label + '</button>').join("");
   root.classList.toggle('flow-loading', waiting && !total && navigator.onLine);
-  root.innerHTML = '<div class="flow-date-range" role="group" aria-label="Date range in UTC">' + options + '</div>'
-    + '<p id="flow-sync-status" class="small-text muted" role="status"></p><div class="usage-grid"><section class="card"><h2>Usage time · ' + range.label + '</h2>' + usageChart(data.hours, range)
-    + '</section><section class="usage-metrics" aria-label="' + range.label + '">' + [["Total usage", duration(total)], ["Total sessions", data.visits],
+  root.innerHTML = '<div class="flow-report-toolbar"><div class="flow-date-range" role="group" aria-label="Date range in UTC">' + options + '</div>'
+    + '<p id="flow-sync-status" class="small-text muted" role="status"></p></div>'
+    + '<section class="usage-metrics" aria-label="' + range.label + '">' + [["Total usage", duration(total)], ["Sessions", data.visits],
       ["Daily average", duration(total / range.days)], ["Devices", data.devices]].map(([label,value]) =>
-      '<div class="card"><div class="tally">' + label + '</div><div class="stat-value">' + value + '</div><small class="muted">' + range.label + '</small></div>').join("")
-    + '</section><section class="card"><h2>' + (signedIn ? "All devices" : "This device") + '</h2><label class="field">Usage list<select id="flow-list-filter">'
+      '<div class="card"><div class="tally">' + label + '</div><div class="stat-value">' + value + '</div></div>').join("")
+    + '</section><section class="card flow-chart-card"><div class="flow-chart-heading"><h2>Usage time · ' + range.label
+    + '</h2><span class="small-text muted">UTC</span></div>' + usageChart(data.hours, range)
+    + '</section><div class="usage-grid"><section class="card"><h2>' + (signedIn ? "All devices" : "This device") + '</h2><label class="field">Usage list<select id="flow-list-filter">'
     + [["all","All usage"],["apps","Apps"],["websites","Websites"]].map(([value,label])=>'<option value="'+value+'" '+(data.listFilter===value ? "selected" : "")+'>'+label+'</option>').join("")
     + '</select></label><ul class="usage-list">' + (rows || '<li class="muted">' + (waiting ? 'No synced usage available for this period yet.' : 'No visible usage in this period.') + '</li>')
     + '</ul><details><summary>Hidden usage (' + data.hidden.length + ')</summary><ul class="usage-list">' + (hidden || '<li>No hidden entries.</li>') + '</ul></details>'

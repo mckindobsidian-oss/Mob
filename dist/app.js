@@ -632,7 +632,7 @@ function focusView() {
 
       <section class="focus-stage" id="focus-stage" aria-label="Pomodoro timer">
 
-        <video muted loop playsinline preload="none" poster="./focus-lake.jpg" aria-hidden="true"></video>
+        <video muted loop playsinline preload="none" poster="./focus-coast.jpg" aria-hidden="true"></video>
 
         <div class="stage-controls" id="stage-controls"></div>
 
@@ -671,7 +671,7 @@ function renderFocus() {
 
   if (showMotion) {
 
-    if (!video.getAttribute("src")) video.src = "./focus-lake.mp4";
+    if (!video.getAttribute("src")) video.src = "./focus-coast.mp4";
 
     if (video.paused) void video.play().catch(() => {});
 
@@ -1137,9 +1137,11 @@ function flowView() {
   const browserSetup = window.MobDesktop ? "" : extensionStatus?.linked
     ? '<label class="switch browser-tracking"><input id="browser-tracking" type="checkbox" role="switch" ' + (browserTracking ? "checked" : "") + '> Track active browser tabs</label>'
     : `<div class="card flow-control">${extensionAvailable ? "<p>Sign in and open Flow to connect your browser.</p>" : extensionDownload()}</div>`;
-  return `${heading("Flow")}
-    ${window.MobDesktop ? `<div class="card flow-control"><label class="switch"><input type="checkbox" id="flow-tracking" role="switch" ${trackingAllowed ? "checked" : ""}> Track foreground apps</label></div>` : browserSetup}
-    <p class="small-text muted" id="device-tracking-status" role="status"></p>
+  const tracking = window.MobDesktop
+    ? `<label class="switch"><input type="checkbox" id="flow-tracking" role="switch" ${trackingAllowed ? "checked" : ""}> Track foreground apps</label>`
+    : browserSetup;
+  const trackingMenu = `<details class="flow-tracking-menu"><summary class="button">${icon("flow")} Tracking</summary><div class="card flow-tracking-panel">${tracking}<p class="small-text muted" id="device-tracking-status" role="status"></p></div></details>`;
+  return `${heading("Flow", "See where your time goes.", trackingMenu)}
     <div id="flow-dashboard"></div>${flowControls.render()}
     <div class="flow-layout">
 
@@ -1858,7 +1860,7 @@ function welcome(step=0){
   modal("welcome",`${step+1} of 3 · ${pages[step][0]}`,`<div class="dialog-body welcome-journey"><img class="onboard-logo" src="./icon.svg" alt="Mob"><p>${pages[step][1]}</p>${step===2&&!native?extensionDownload():""}<p class="small-text muted">You can revisit setup from Account at any time. Permissions are optional and requested when you enable a feature.</p><div class="form-actions"><button class="button" data-action="setup-finish">Skip for now</button>${step?`<button class="button" data-action="welcome" data-id="${step-1}">Back</button>`:""}<button class="button primary" data-action="${step===2?"onboard":"welcome"}" data-id="${step===2?1:step+1}">${step===2?"Set up features":"Next"}</button></div></div>`);
 }
 
-const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.3/Mob-Browser-Extension-v1.6.5.zip";
+const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.4/Mob-Browser-Extension-v1.6.6.zip";
 function extensionDownload() {
   return `<a class="button primary" href="${extensionURL}">Download Mob extension</a><p class="small-text muted">Extract the ZIP and load it from Chrome or Edge’s Extensions page using Developer mode. Reload Flow when it’s installed.</p>`;
 }

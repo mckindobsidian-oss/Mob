@@ -25,8 +25,8 @@ assert.equal(offsetDay("2024-02-28", 2), "2024-03-01");
 assert.equal(usernameFor(" Mób North & Designer ", "ABCDEF123"), "mo-b-north-desig-abcdef");
 
 const dist = new URL("./dist/", import.meta.url);
-for (const asset of ["supabase-config.js", "focus-lake.jpg", "focus-lake.mp4", "icon.svg"]) await access(new URL(asset, dist));
-const clip = await readFile(new URL("focus-lake.mp4", dist));
+for (const asset of ["supabase-config.js", "focus-lake.jpg", "focus-coast.mp4", "icon.svg"]) await access(new URL(asset, dist));
+const clip = await readFile(new URL("focus-coast.mp4", dist));
 assert.equal(clip.toString("ascii", 4, 8), "ftyp");
 assert.equal(spotifySource("https://open.spotify.com/playlist/37i9dQZF1DZ06evO3eIivx?si=example"), "https://open.spotify.com/playlist/37i9dQZF1DZ06evO3eIivx");
 assert.throws(() => spotifySource("https://open.spotify.com.example.com/playlist/37i9dQZF1DZ06evO3eIivx"));

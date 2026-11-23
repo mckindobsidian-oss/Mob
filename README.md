@@ -30,7 +30,7 @@ Windows and Android bundle the Mob interface and connect to Supabase directly. T
 - **Browser extension** — zip the contents of `clients/extension/` with `manifest.json` at the archive root. Extract it, open Chrome or Edge Extensions, enable Developer mode, and select **Load unpacked**. The toolbar popup opens Mob Flow.
 - **Android** syncs tasks and an optional aggregate Social focus score every five minutes while active. Pomodoro and YouTube Shorts blocking are local. Enable accessibility only for Shorts blocking, and notifications only for reminders. Android Flow shows Coming soon; there is no app usage access, background usage collection or mobile usage upload. Settings includes Shorts blocking and bottom navigation reordering.
 
-The Focus video is a slowed and softly graded edit of [A Misty Lake in the Forest by K on Pexels](https://www.pexels.com/video/a-misty-lake-in-the-forest-4296652/) under the [Pexels License](https://www.pexels.com/license/).
+The Focus background is adapted from [Aerial View of Ocean Waves by ArtHouse Studio](https://www.pexels.com/video/aerial-view-of-ocean-waves-4631568/). The lake poster used elsewhere is from [A Misty Lake in the Forest by K](https://www.pexels.com/video/a-misty-lake-in-the-forest-4296652/). Both are provided under the [Pexels License](https://www.pexels.com/license/).
 
 ## Focus sounds and themed pickers
 

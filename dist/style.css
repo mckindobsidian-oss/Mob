@@ -235,7 +235,7 @@ main { margin-left: var(--sidebar-width); }
 .focus-stage {
   position: relative; isolation: isolate; overflow: hidden; border-radius: 15px; min-height: 516px;
   display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--scene-tint));
-  background: url("./focus-lake.jpg") center / cover, var(--scene-tint);
+  background: url("./focus-coast.jpg") center / cover, var(--scene-tint);
   color: #f6fff5;
   --muted: #dce9dc; --accent: #d6eac9; --selected: #486052; --raised: #263a31; --card: #192d23ed;
   --well: #182a22e8; --line: #5d7666; --strong-line: #6a8373; --ink: #f6fff5;
@@ -668,3 +668,31 @@ html[data-loading-view="tasks"] .sk-panel, html[data-loading-view="social"] .sk-
 @keyframes mob-shimmer { to { background-position: -220% 0; } }
 @media (max-width: 600px) { .sk-grid { grid-template-columns: 1fr; } .sk-panel { height: 150px; } }
 @media (prefers-reduced-motion: reduce) { .skeleton, .flow-loading .usage-chart, .flow-loading .stat-value, .music-card #spotify-player { animation: none; } }
+
+/* Workspace sizing is explicit because main is a flex column. */
+#view.content { width: 100%; min-width: 0; }
+@media (min-width: 921px) {
+  #view.content { padding-inline: clamp(26px, 3vw, 48px); }
+  .focus-layout { grid-template-columns: minmax(0, 1fr) minmax(225px, 30%); gap: 24px; }
+  .dashboard { gap: 24px; }
+  .focus-layout .stage-controls { padding-top: 66px; }
+}
+.flow-report-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin: 0 0 20px; }
+.flow-report-toolbar :is(.flow-date-range, #flow-sync-status) { margin: 0; }
+.flow-report-toolbar .flow-date-range { flex-wrap: wrap; }
+#flow-dashboard > .usage-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 20px; }
+#flow-dashboard > .usage-metrics .card { min-height: 88px; padding: 15px 18px; }
+.flow-chart-card { margin-bottom: 24px; padding: clamp(18px, 2.5vw, 30px); }
+.flow-chart-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
+.flow-chart-card .usage-chart { display: block; width: 100%; max-width: 1040px; margin-inline: auto; }
+.flow-chart-card .usage-legend { margin-top: 14px; }
+.flow-tracking-menu { position: relative; flex: none; }
+.flow-tracking-menu summary { cursor: pointer; list-style: none; }
+.flow-tracking-menu summary::-webkit-details-marker { display: none; }
+.flow-tracking-menu[open] > summary { border-color: var(--accent); }
+.flow-tracking-panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 6; width: min(320px, 82vw); box-shadow: 0 10px 30px #0004; }
+.flow-tracking-panel :is(.flow-control, .browser-tracking) { margin: 0; padding: 0; border: 0; box-shadow: none; }
+.flow-tracking-panel p { margin: 10px 0 0; }
+@media (min-width: 921px) {
+  #flow-dashboard > .usage-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
