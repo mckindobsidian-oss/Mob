@@ -556,6 +556,34 @@ function taskRows(list, empty = "No tasks here yet.") {
 
 
 
+function gardenTree() {
+  return `<svg viewBox="0 0 144 144" aria-hidden="true" focusable="false">
+    <ellipse class="garden-tree-shadow" cx="72" cy="127" rx="34" ry="7"/>
+    <g class="garden-tree-shoot">
+      <path class="garden-tree-trunk" d="M70 128c-3-16-1-34 2-48l5-10 2 3c-4 22-4 40 2 55z"/>
+      <path class="garden-tree-light" d="M72 115c-12-2-19-7-22-16 10 0 19 4 22 11m4 1c10-10 16-12 25-10-7 9-15 13-25 13"/>
+    </g>
+    <g class="garden-tree-crown">
+      <path class="garden-tree-trunk" d="M68 108 53 82l5-5 16 18 17-20 5 5-20 28z"/>
+      <path class="garden-tree-dark" d="M39 94c-18-1-23-19-12-30-5-15 6-28 20-28 5-19 27-24 40-10 17-4 30 7 29 22 18 11 14 36-4 41-10 11-24 9-34 2-13 11-27 12-39 3z"/>
+      <path class="garden-tree-middle" d="M32 72c-6-13 4-26 20-26 2-17 18-24 31-13 13-4 26 5 24 18 14 5 14 22 1 29-9 7-21 4-28-2-14 11-29 11-37 1-5-1-8-3-11-7z"/>
+      <path class="garden-tree-light" d="M46 58c0-8 6-13 16-12 4-11 15-14 23-4 11-3 19 3 17 11 7 3 10 9 5 15-6 5-16 1-21-2-8 7-22 8-29 2-8 0-11-4-11-10z"/>
+      <path class="garden-tree-glint" d="M61 46c5-6 12-7 16-4m10 9c4-2 8-1 11 1M40 68l6 2"/>
+    </g>
+  </svg>`;
+}
+
+function focusGarden() {
+  const todayTrees = sessions.filter(session => session.day === day).length;
+  return `<div class="focus-garden">
+    <div class="garden-heading"><div><strong>Focus garden</strong><span data-garden-caption></span></div><span class="garden-today">${todayTrees} ${todayTrees === 1 ? "tree" : "trees"} today</span></div>
+    <div class="garden-scene" id="garden-scene" aria-hidden="true">
+      <span class="garden-sun"></span><span class="garden-hill garden-hill-far"></span><span class="garden-hill garden-hill-near"></span>
+      <span class="garden-lawn"></span><span class="garden-plant">${gardenTree()}</span>
+    </div>
+  </div>`;
+}
+
 function focusMarkup(large = false) {
 
   const modes = Object.entries(timerLabels).map(([mode, label]) =>
@@ -572,7 +600,7 @@ function focusMarkup(large = false) {
 
   return `<section class="card focus-card ${large ? "large-focus" : ""}">
 
-    ${large ? "" : sectionTitle("timer", "Pomodoro", "Focus and break timer")}
+    ${large ? focusGarden() : sectionTitle("timer", "Pomodoro", "Focus and break timer")}
 
     <div class="timer-content">
 
@@ -1285,14 +1313,29 @@ function drawClock() {
 
   const seconds = Math.ceil(remaining / 1000);
 
-  const time = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  const minutes = String(Math.floor(seconds / 60) % 60).padStart(2, "0");
+  const secondsLabel = String(seconds % 60).padStart(2, "0");
+  const time = seconds >= 3600 ? `${Math.floor(seconds / 3600)}:${minutes}:${secondsLabel}` : `${minutes}:${secondsLabel}`;
 
   const field = $(".time");
 
-  if (field && field.textContent !== time) field.textContent = time;
+  if (field && field.textContent !== time) {
+    field.textContent = time;
+    field.toggleAttribute("data-hours", seconds >= 3600);
+  }
 
   $(".timer-ring .progress")?.setAttribute("stroke-dasharray", `${100 * remaining / timer.duration} 100`);
 
+  const garden = $("#garden-scene");
+  if (garden) {
+    const isFocus = timer.mode === "focus";
+    const progress = isFocus ? Math.max(0, Math.min(1, 1 - remaining / timer.duration)) : 0;
+    const phase = !isFocus ? "rest" : !timer.id ? "seed" : progress < .33 ? "sprout" : progress < .67 ? "sapling" : "canopy";
+    if (garden.dataset.phase !== phase) garden.dataset.phase = phase;
+    const caption = $("[data-garden-caption]");
+    const label = !isFocus ? "Rest between sessions" : !timer.id ? "Start a session to plant a seed" : !timer.endsAt ? "Growth paused" : `${Math.floor(progress * 100)}% grown`;
+    if (caption.textContent !== label) caption.textContent = label;
+  }
   document.title = timer.endsAt ? `${time} · ${timerLabels[timer.mode]} · Mob` : `Mob · ${views[route()][0]}`;
 
 }
@@ -1820,8 +1863,48 @@ let passwordStatus = null;
 function profileView() {
   if (!account) return `${heading("Profile")}<p class="muted">Sign in to view your profile.</p>`;
   const passwordLabel = passwordStatus === false ? "Set a password" : passwordStatus === true ? "Change password" : "Manage password";
-  return `${heading("Profile")}<section class="card profile-page"><div class="profile-identity"><span class="avatar">${avatarMarkup()}</span><div><h2>${escape(account.displayName || (handle ? "@" + handle : "Mob account"))}</h2><p class="muted">${escape(account.email || "")}</p>${handle ? `<small>@${escape(handle)}</small>` : ""}</div></div>
-    <div class="account-actions"><button class="button" data-action="edit-avatar">Edit photo</button>${handleLoaded ? `<button class="button" data-action="edit-handle">${handle ? "Change username" : "Choose username"}</button>` : ""}<button class="button" data-action="account-password">${passwordLabel}</button><button class="button" data-action="signout">Log out</button><button class="button danger" data-action="delete-account">Delete account</button></div></section>`;
+  const totalMinutes = sessions.reduce((sum, session) => sum + (Number(session.minutes) || 0), 0);
+  const streak = streakFor(activityFor([], sessions), day);
+  const completedTasks = tasks.filter(task => task.completedDay).length;
+  const recent = [...sessions].reverse().sort((a, b) => b.day.localeCompare(a.day)).slice(0, 12);
+  const lastWeek = Array.from({ length: 7 }, (_, i) => {
+    const key = offsetDay(day, i - 6);
+    return { key, minutes: sessions.reduce((sum, session) => sum + (session.day === key ? Number(session.minutes) || 0 : 0), 0) };
+  });
+  const maxMinutes = Math.max(1, ...lastWeek.map(entry => entry.minutes));
+  const stats = [
+    ["Focus time", timeUsed(totalMinutes * 60), "timer"],
+    ["Sessions completed", sessions.length, "play"],
+    ["Current focus streak", `${streak.current} ${streak.current === 1 ? "day" : "days"}`, "flame"],
+    ["Tasks completed", completedTasks, "check"]
+  ];
+  return `<div class="profile-dashboard">
+    <section class="card profile-hero">
+      <div class="profile-identity"><span class="avatar">${avatarMarkup()}</span><div>
+        <p class="profile-kicker">Profile</p>
+        <h1>${escape(account.displayName || (handle ? "@" + handle : "Mob account"))}</h1>
+        ${handle ? `<p class="muted">@${escape(handle)}</p>` : ""}
+      </div></div>
+      <div class="profile-edit"><button class="button" data-action="edit-avatar">Edit photo</button>${handleLoaded ? `<button class="button" data-action="edit-handle">${handle ? "Change username" : "Choose username"}</button>` : ""}</div>
+    </section>
+    <div class="profile-stats" aria-label="Your progress">${stats.map(([label, value, glyph]) => `<section class="card profile-stat">${icon(glyph)}<span>${label}</span><strong>${value}</strong></section>`).join("")}</div>
+    <div class="profile-activity">
+      <section class="card profile-grove">
+        ${sectionTitle("spark", "Your grove", window.MobAndroid ? "Completed focus sessions on this device" : "One tree for every completed focus session")}
+        ${recent.length ? `<ul class="grove-grid">${recent.map(session => `<li title="${escape(formatDay(session.day, { dateStyle: "medium" }))} · ${timeUsed(session.minutes * 60)}">${gardenTree()}<span>${escape(formatDay(session.day, { month: "short", day: "numeric" }))}</span><small>${timeUsed(session.minutes * 60)}</small></li>`).join("")}</ul>` : `<p class="muted">Your first completed session will plant a tree here.</p>`}
+      </section>
+      <section class="card profile-week">
+        ${sectionTitle("calendar", "Focus this week", `${timeUsed(lastWeek.reduce((sum, entry) => sum + entry.minutes, 0) * 60)} in the last 7 days`)}
+        <ol class="profile-week-bars">${lastWeek.map(({ key, minutes }) => `<li><meter aria-label="${escape(formatDay(key, { dateStyle: "full" }))} · ${timeUsed(minutes * 60)}" value="${minutes}" min="0" max="${maxMinutes}"></meter><span>${escape(formatDay(key, { weekday: "narrow" }))}</span></li>`).join("")}</ol>
+        <p class="muted">Best focus streak <strong>${streak.best} ${streak.best === 1 ? "day" : "days"}</strong></p>
+      </section>
+    </div>
+    ${achievementView()}
+    <section class="card profile-account">
+      ${sectionTitle("user", "Account", escape(account.email || ""))}
+      <div class="account-actions"><button class="button" data-action="account-password">${passwordLabel}</button><button class="button" data-action="signout">Log out</button><button class="button danger" data-action="delete-account">Delete account</button></div>
+    </section>
+  </div>`;
 }
 
 function accountDialog(mode = "login") {
@@ -1880,7 +1963,7 @@ function welcome(step=0){
   modal("welcome",`${step+1} of 3 · ${pages[step][0]}`,`<div class="dialog-body welcome-journey"><img class="onboard-logo" src="./icon.svg" alt="Mob"><p>${pages[step][1]}</p>${step===2&&!native?extensionDownload():""}<p class="small-text muted">You can revisit setup from Account at any time. Permissions are optional and requested when you enable a feature.</p><div class="form-actions"><button class="button" data-action="setup-finish">Skip for now</button>${step?`<button class="button" data-action="welcome" data-id="${step-1}">Back</button>`:""}<button class="button primary" data-action="${step===2?"onboard":"welcome"}" data-id="${step===2?1:step+1}">${step===2?"Set up features":"Next"}</button></div></div>`);
 }
 
-const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.6/Mob-Browser-Extension-v1.6.8.zip";
+const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.7/Mob-Browser-Extension-v1.6.9.zip";
 function extensionDownload() {
   return `<a class="button primary" href="${extensionURL}">Download Mob extension</a><p class="small-text muted">Extract the ZIP and load it from Chrome or Edge’s Extensions page using Developer mode. Reload Flow when it’s installed.</p>`;
 }
@@ -2216,7 +2299,8 @@ function watchAccount(user, event) {
       if (account?.uid !== uid) return;
 
       const previousAudio=soundSettings();
-      settings = { ...defaults, ...data, ...devicePreferences() };
+      settings = { ...defaults, ...data, ...devicePreferences(), focus: data?.focus ?? settings.focus };
+      if (data?.focus != null) save("device-preferences", { ...devicePreferences(), focus: data.focus });
       if (data) {
         const preferences = devicePreferences();
         const incoming = Object.fromEntries(devicePreferenceKeys.filter(key => data[key] != null && !Object.hasOwn(preferences, key)).map(key => [key, data[key]]));
@@ -2231,10 +2315,9 @@ function watchAccount(user, event) {
 
         setTimer(data.activeTimer, false, false);
 
-      } else if (!timer.id && !timer.updatedAt) {
-
-        timer = newTimer(settings, timer.mode, { rounds: timer.rounds, taskId: timer.taskId });
-
+      }
+      if (!timer.id && (!timer.updatedAt || timer.duration !== settings[timer.mode] * 60_000)) {
+        setTimer(newTimer(settings, timer.mode, { rounds: timer.rounds, taskId: timer.taskId, updatedAt: timer.updatedAt }), false, false);
       }
 
       void syncTimer();
