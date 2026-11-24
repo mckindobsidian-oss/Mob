@@ -1,8 +1,8 @@
 param([string]$BuildDirectory = '', [string]$Destination = '')
 $ErrorActionPreference='Stop'
 $project=(Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-if(!$BuildDirectory){$BuildDirectory=Join-Path $project '.mob-build/release-1.5.7/Mob-Windows-v1.5'}
-if(!$Destination){$Destination=Join-Path $project 'Mob-Setup-v1.5.7.exe'}
+if(!$BuildDirectory){$BuildDirectory=Join-Path $project '.mob-build/release-1.5.8/Mob-Windows-v1.5'}
+if(!$Destination){$Destination=Join-Path $project 'Mob-Setup-v1.5.8.exe'}
 if(!(Test-Path -LiteralPath (Join-Path $BuildDirectory 'Mob.exe'))){& (Join-Path $PSScriptRoot 'package.ps1') -OutputDirectory $BuildDirectory}
 if((Split-Path $BuildDirectory -Leaf) -ne 'Mob-Windows-v1.5'){throw 'Expected the versioned Mob-Windows-v1.5 build folder.'}
 $payload=Join-Path $project '.mob-build/Mob-v1.5-payload.zip'

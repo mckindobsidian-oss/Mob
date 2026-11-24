@@ -860,11 +860,7 @@ function todayView() {
 
     </div>
 
-    ${upcoming ? `<section class="card next-reminder">${sectionTitle("bell", "Next reminder", escape(upcoming.title) + " · " + escape(new Date(reminderTimestamp(upcoming)).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })), `<button class="text-action" data-action="task-edit" data-id="${escape(upcoming.id)}">Edit</button>`)}</section>` : ""}
-
-
-
-    ${achievementView()}`;
+    ${upcoming ? `<section class="card next-reminder">${sectionTitle("bell", "Next reminder", escape(upcoming.title) + " · " + escape(new Date(reminderTimestamp(upcoming)).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })), `<button class="text-action" data-action="task-edit" data-id="${escape(upcoming.id)}">Edit</button>`)}</section>` : ""}`;
 
 }
 
@@ -1859,6 +1855,42 @@ function notificationDialog() {
 
 
 
+const grovePageSize = 24;
+function openGrove(requestedPage = 0) {
+  if (!account || !sessions.length) return;
+  const pageCount = Math.ceil(sessions.length / grovePageSize);
+  const page = Math.min(pageCount - 1, Math.max(0, Number(requestedPage) || 0));
+  const start = page * grovePageSize;
+  const trees = [...sessions].reverse().sort((a, b) => b.day.localeCompare(a.day)).slice(start, start + grovePageSize);
+  modal("grove", "Your grove", `<div class="dialog-body">
+    <p class="muted">${start + 1}–${start + trees.length} of ${sessions.length} trees</p>
+    <ul class="grove-grid">${trees.map(session => `<li title="${escape(formatDay(session.day, { dateStyle: "medium" }))}">${gardenTree()}<span>${escape(formatDay(session.day, { month: "short", day: "numeric" }))}</span><small>${timeUsed(session.minutes * 60)}</small></li>`).join("")}</ul>
+    ${pageCount > 1 ? `<div class="form-actions grove-pages" aria-label="Grove pages">
+      <button class="button" data-action="open-grove" data-id="${page - 1}" ${page === 0 ? "disabled" : ""}>Previous</button>
+      <button class="button" data-action="open-grove" data-id="${page + 1}" ${page + 1 === pageCount ? "disabled" : ""}>Next</button>
+    </div>` : ""}
+  </div>`);
+}
+
+function focusHeatmap() {
+  const daily = new Map();
+  for (const session of sessions) {
+    daily.set(session.day, (daily.get(session.day) || 0) + (Number(session.minutes) || 0));
+  }
+  const monday = offsetDay(day, -((dayDate(day).getDay() + 6) % 7));
+  const start = offsetDay(monday, -84);
+  const cells = Array.from({ length: 91 }, (_, index) => {
+    const key = offsetDay(start, index);
+    if (key > day) return '<span class="heat-cell future" aria-hidden="true"></span>';
+    const minutes = daily.get(key) || 0;
+    const intensity = minutes >= 120 ? 4 : minutes >= 60 ? 3 : minutes >= 25 ? 2 : minutes > 0 ? 1 : 0;
+    const label = escape(`${formatDay(key, { dateStyle: "full" })} · ${timeUsed(minutes * 60)}`);
+    return `<span class="heat-cell" data-level="${intensity}" role="img" aria-label="${label}" title="${label}"></span>`;
+  }).join("");
+  return `<div class="profile-heatmap" role="group" aria-label="Focus minutes by day">${cells}</div>
+    <div class="heat-legend" aria-label="From no focus time to two hours or more">Less ${[0, 1, 2, 3, 4].map(level => `<span class="heat-cell" data-level="${level}" aria-hidden="true"></span>`).join("")} More</div>`;
+}
+
 let passwordStatus = null;
 function profileView() {
   if (!account) return `${heading("Profile")}<p class="muted">Sign in to view your profile.</p>`;
@@ -1866,12 +1898,6 @@ function profileView() {
   const totalMinutes = sessions.reduce((sum, session) => sum + (Number(session.minutes) || 0), 0);
   const streak = streakFor(activityFor([], sessions), day);
   const completedTasks = tasks.filter(task => task.completedDay).length;
-  const recent = [...sessions].reverse().sort((a, b) => b.day.localeCompare(a.day)).slice(0, 12);
-  const lastWeek = Array.from({ length: 7 }, (_, i) => {
-    const key = offsetDay(day, i - 6);
-    return { key, minutes: sessions.reduce((sum, session) => sum + (session.day === key ? Number(session.minutes) || 0 : 0), 0) };
-  });
-  const maxMinutes = Math.max(1, ...lastWeek.map(entry => entry.minutes));
   const stats = [
     ["Focus time", timeUsed(totalMinutes * 60), "timer"],
     ["Sessions completed", sessions.length, "play"],
@@ -1891,11 +1917,12 @@ function profileView() {
     <div class="profile-activity">
       <section class="card profile-grove">
         ${sectionTitle("spark", "Your grove", window.MobAndroid ? "Completed focus sessions on this device" : "One tree for every completed focus session")}
-        ${recent.length ? `<ul class="grove-grid">${recent.map(session => `<li title="${escape(formatDay(session.day, { dateStyle: "medium" }))} · ${timeUsed(session.minutes * 60)}">${gardenTree()}<span>${escape(formatDay(session.day, { month: "short", day: "numeric" }))}</span><small>${timeUsed(session.minutes * 60)}</small></li>`).join("")}</ul>` : `<p class="muted">Your first completed session will plant a tree here.</p>`}
+        <div class="grove-summary">${gardenTree()}<div><strong>${sessions.length} ${sessions.length === 1 ? "tree" : "trees"}</strong>
+        ${sessions.length ? '<button class="button" data-action="open-grove">View grove</button>' : '<span class="muted">Finish a focus session to plant your first tree.</span>'}</div></div>
       </section>
       <section class="card profile-week">
-        ${sectionTitle("calendar", "Focus this week", `${timeUsed(lastWeek.reduce((sum, entry) => sum + entry.minutes, 0) * 60)} in the last 7 days`)}
-        <ol class="profile-week-bars">${lastWeek.map(({ key, minutes }) => `<li><meter aria-label="${escape(formatDay(key, { dateStyle: "full" }))} · ${timeUsed(minutes * 60)}" value="${minutes}" min="0" max="${maxMinutes}"></meter><span>${escape(formatDay(key, { weekday: "narrow" }))}</span></li>`).join("")}</ol>
+        ${sectionTitle("calendar", "Focus heatmap", "Last 13 weeks")}
+        ${focusHeatmap()}
         <p class="muted">Best focus streak <strong>${streak.best} ${streak.best === 1 ? "day" : "days"}</strong></p>
       </section>
     </div>
@@ -1963,7 +1990,7 @@ function welcome(step=0){
   modal("welcome",`${step+1} of 3 · ${pages[step][0]}`,`<div class="dialog-body welcome-journey"><img class="onboard-logo" src="./icon.svg" alt="Mob"><p>${pages[step][1]}</p>${step===2&&!native?extensionDownload():""}<p class="small-text muted">You can revisit setup from Account at any time. Permissions are optional and requested when you enable a feature.</p><div class="form-actions"><button class="button" data-action="setup-finish">Skip for now</button>${step?`<button class="button" data-action="welcome" data-id="${step-1}">Back</button>`:""}<button class="button primary" data-action="${step===2?"onboard":"welcome"}" data-id="${step===2?1:step+1}">${step===2?"Set up features":"Next"}</button></div></div>`);
 }
 
-const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.7/Mob-Browser-Extension-v1.6.9.zip";
+const extensionURL = "https://github.com/mckindobsidian-oss/Mob-Platform/releases/download/v1.5.8/Mob-Browser-Extension-v1.6.10.zip";
 function extensionDownload() {
   return `<a class="button primary" href="${extensionURL}">Download Mob extension</a><p class="small-text muted">Extract the ZIP and load it from Chrome or Edge’s Extensions page using Developer mode. Reload Flow when it’s installed.</p>`;
 }
@@ -2428,6 +2455,7 @@ function toggleMobileMenu(open = !document.body.classList.contains("mobile-menu-
 }
 
 const actions = {
+  "open-grove": openGrove,
   "edit-avatar": () => modal("profile-photo", "Profile photo", `<form id="profile-photo-form" class="dialog-body"><label class="field">Choose a square photo<input name="photo" type="file" accept="image/*" required></label><div class="form-actions">${customAvatar ? '<button class="button" type="button" data-action="remove-avatar">Remove photo</button>' : ""}<button class="button primary" type="submit">Save photo</button></div><p class="error" role="alert"></p></form>`),
   "remove-avatar": async () => {
     const uid = account?.uid;

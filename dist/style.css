@@ -772,16 +772,11 @@ button#profile .avatar img, .profile-identity .avatar img { width: 100%;height:1
 .profile-stat > span { color: var(--muted); font-size: 12px; }
 .profile-stat strong { font-size: clamp(17px, 2.6vw, 29px); overflow-wrap: anywhere; }
 .profile-activity { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 14px; align-items: start; }
-.grove-grid, .profile-week-bars { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.grove-grid { margin: 16px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .grove-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
 .grove-grid li { display: grid; justify-items: center; align-content: start; border-radius: 12px; background: var(--well); padding: 5px 3px 8px; font-size: 11px; }
 .grove-grid svg { width: min(100%, 66px); }
 .grove-grid small { color: var(--muted); font-size: 10px; margin-top: 3px; }
-.profile-week-bars { grid-template-columns: repeat(7, minmax(0, 1fr)); }
-.profile-week-bars li { display: grid; gap: 7px; justify-items: center; color: var(--muted); font-size: 11px; }
-.profile-week-bars meter { writing-mode: vertical-lr; direction: rtl; width: 13px; height: 68px; }
-.profile-week-bars meter::-webkit-meter-bar { border: 0; background: var(--well); }
-.profile-week-bars meter::-webkit-meter-optimum-value { border-radius: 12px; background: var(--accent); }
 .profile-week p { display: flex; justify-content: space-between; gap: 7px; margin-top: 16px; }
 .profile-account .account-actions { margin-top: 14px; display: flex; flex-wrap: wrap; }
 @media (max-width: 759px) {
@@ -793,3 +788,19 @@ button#profile .avatar img, .profile-identity .avatar img { width: 100%;height:1
 .time[data-hours] { font-size: 28px; }
 .large-focus .time[data-hours] { font-size: clamp(32px, 4vw, 52px); }
 .focus-stage.expanded .time[data-hours], .focus-stage:fullscreen .time[data-hours] { font-size: clamp(39px, 8vmin, 72px); }
+
+
+.grove-summary { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+.grove-summary > svg { flex: none; width: clamp(66px, 15vw, 106px); aspect-ratio: 1; }
+.grove-summary > div { display: grid; justify-items: start; gap: 9px; }
+.grove-summary strong { font-size: 24px; }
+.grove-pages { margin-top: 16px; }
+.profile-heatmap { display: grid; grid-template: repeat(7, auto) / repeat(13, minmax(0, 1fr)); grid-auto-flow: column; gap: 3px; margin: 16px 0 10px; }
+.heat-cell { display: block; aspect-ratio: 1; border-radius: 3px; background: var(--well); }
+.heat-cell[data-level="1"] { background: color-mix(in srgb, var(--accent) 30%, var(--well)); }
+.heat-cell[data-level="2"] { background: color-mix(in srgb, var(--accent) 52%, var(--well)); }
+.heat-cell[data-level="3"] { background: color-mix(in srgb, var(--accent) 75%, var(--well)); }
+.heat-cell[data-level="4"] { background: var(--accent); }
+.heat-cell.future { visibility: hidden; }
+.heat-legend { display: flex; justify-content: end; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+.heat-legend .heat-cell { width: 10px; }

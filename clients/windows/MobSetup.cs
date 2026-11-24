@@ -8,7 +8,7 @@ using System.ComponentModel;
 using System.Windows.Forms;
 [assembly: AssemblyTitle("Mob Setup")]
 [assembly: AssemblyProduct("Mob")]
-[assembly: AssemblyVersion("1.5.7.0")]
+[assembly: AssemblyVersion("1.5.8.0")]
 class MobSetup : Form {
  Label status; ProgressBar progress; Button install;
  string destination; bool silent,noLaunch;
@@ -24,7 +24,7 @@ class MobSetup : Form {
   Text="Install Mob";ClientSize=new Size(480,250);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;StartPosition=FormStartPosition.CenterScreen;
   BackColor=Color.FromArgb(17,23,19);ForeColor=Color.FromArgb(238,244,234);Font=new Font("Segoe UI",10);
   var title=new Label{Text="Meet your next focused day.",Location=new Point(28,26),Size=new Size(430,38),Font=new Font("Segoe UI",19,FontStyle.Bold)};Controls.Add(title);
-  status=new Label{Text="Mob 1.5.7 installs for your Windows account.\nTasks, focus, and Flow — one calm workspace.",Location=new Point(28,79),Size=new Size(425,66)};Controls.Add(status);
+  status=new Label{Text="Mob 1.5.8 installs for your Windows account.\nTasks, focus, and Flow — one calm workspace.",Location=new Point(28,79),Size=new Size(425,66)};Controls.Add(status);
   progress=new ProgressBar{Location=new Point(28,158),Size=new Size(424,12)};Controls.Add(progress);
   install=new Button{Text="Install and open Mob",Location=new Point(225,190),Size=new Size(227,36),FlatStyle=FlatStyle.Flat,BackColor=Color.FromArgb(181,230,138),ForeColor=Color.FromArgb(23,42,28)};Controls.Add(install);
   install.Click+=(s,e)=>{if(install.Text=="Done"){Close();return;}install.Enabled=false;status.Text="Installing Mob…";var worker=new BackgroundWorker();worker.DoWork+=(a,b)=>Install();worker.RunWorkerCompleted+=(a,b)=>{if(b.Error!=null){status.Text=b.Error.Message;install.Enabled=true;}else{status.Text="Mob is installed. A shortcut is ready on your desktop.";progress.Value=100;install.Text="Done";install.Enabled=true;}};worker.RunWorkerAsync();};
